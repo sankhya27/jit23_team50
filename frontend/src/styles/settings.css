@@ -1,0 +1,166 @@
+.settings-page{
+padding:30px;
+display:flex;
+flex-direction:column;
+gap:28px;
+}
+
+.settings-page h1{
+font-size:32px;
+font-weight:700;
+color:#fff;
+margin-bottom:5px;
+}
+
+.settings-grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(420px,1fr));
+gap:24px;
+}
+
+.settings-card{
+background:linear-gradient(145deg,#18283d,#101c2d);
+border-radius:18px;
+padding:24px;
+box-shadow:0 15px 35px rgba(0,0,0,.25);
+transition:.3s;
+}
+
+.settings-card:hover{
+transform:translateY(-4px);
+box-shadow:0 20px 40px rgba(46,168,255,.15);
+}
+
+.settings-card h2{
+display:flex;
+align-items:center;
+font-size:20px;
+margin-bottom:24px;
+color:#fff;
+}
+
+.setting-item{
+display:flex;
+flex-direction:column;
+margin-bottom:18px;
+}
+
+.setting-item label{
+margin-bottom:8px;
+font-size:14px;
+color:#9fb4d9;
+font-weight:600;
+}
+
+.setting-item input{
+padding:13px 14px;
+border:none;
+outline:none;
+border-radius:10px;
+background:#22344d;
+color:white;
+font-size:14px;
+}
+
+.setting-item input:focus{
+outline:2px solid #2563eb;
+}
+
+.save-btn{
+margin-top:8px;
+background:#2563eb;
+border:none;
+color:white;
+padding:13px 20px;
+border-radius:10px;
+cursor:pointer;
+font-size:15px;
+font-weight:600;
+transition:.25s;
+}
+
+.save-btn:hover{
+background:#1d4ed8;
+transform:translateY(-2px);
+}
+
+.toggle-row{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:16px 0;
+border-bottom:1px solid rgba(255,255,255,.06);
+color:white;
+font-size:15px;
+}
+
+.toggle-row:last-child{
+border-bottom:none;
+}
+
+.switch{
+position:relative;
+display:inline-block;
+width:52px;
+height:28px;
+}
+
+.switch input{
+display:none;
+}
+
+.slider{
+position:absolute;
+cursor:pointer;
+top:0;
+left:0;
+right:0;
+bottom:0;
+background:#394b63;
+transition:.3s;
+border-radius:30px;
+}
+
+.slider:before{
+position:absolute;
+content:"";
+height:22px;
+width:22px;
+left:3px;
+bottom:3px;
+background:white;
+transition:.3s;
+border-radius:50%;
+}
+
+.switch input:checked + .slider{
+background:#2563eb;
+}
+
+.switch input:checked + .slider:before{
+transform:translateX(24px);
+}
+
+@media(max-width:900px){
+
+.settings-grid{
+grid-template-columns:1fr;
+}
+
+}
+
+@media(max-width:600px){
+
+.settings-page{
+padding:18px;
+}
+
+.settings-card{
+padding:18px;
+}
+
+.settings-page h1{
+font-size:26px;
+}
+
+}

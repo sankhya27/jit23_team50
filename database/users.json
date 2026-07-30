@@ -1,0 +1,17 @@
+{
+  "demo": {
+    "username": "demo",
+    "email": "demo@test.com",
+    "password_hash": "scrypt:32768:8:1$cnLqKHJtDjLTwuJI$5ff9cc5feb96416220c6e49e736b120d2b649f808ddf8661e11800a8b6650d8884a684f203460d7f15fe13b9c8a63bbb76d368013ec893f9fb539af0e22deee6"
+  },
+  "sankhyahegde": {
+    "username": "sankhyahegde",
+    "email": "abc@gmail.com",
+    "password_hash": "scrypt:32768:8:1$rHlictkkvLZRCGlD$d5b33a923c6af842cfd9fb63050fdf5159fb628ba27fc729cf061efe7756d619f63c2b70a62a86c6a2556a47703d3a4b585700e1a1368027ca483fd300926066"
+  },
+  "bubbly": {
+    "username": "bubbly",
+    "email": "bubbly@gmail.com",
+    "password_hash": "scrypt:32768:8:1$4BhnXi7zdyQB3JLs$90178357857178f6f07f7d322a220e3986362f7eec327990e90f6ea20b2081b4b75e7d71c5b1edbc700db5f9d7b7c77b258a20bf3ed97c89660644bf91f6be77"
+  }
+}

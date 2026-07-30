@@ -1,0 +1,786 @@
+/* ==========================================================
+   USERS PAGE
+========================================================== */
+
+.users-page{
+
+padding:30px;
+
+display:flex;
+
+flex-direction:column;
+
+gap:28px;
+
+animation:fadeUsers .4s ease;
+
+}
+
+/* ==========================================================
+   HEADER
+========================================================== */
+
+.users-header{
+
+display:flex;
+
+justify-content:space-between;
+
+align-items:center;
+
+flex-wrap:wrap;
+
+gap:20px;
+
+}
+
+.users-header h1{
+
+font-size:34px;
+
+font-weight:700;
+
+color:white;
+
+display:flex;
+
+align-items:center;
+
+gap:10px;
+
+margin-bottom:8px;
+
+}
+
+.users-header p{
+
+color:#8da3be;
+
+font-size:15px;
+
+}
+
+.add-user-btn{
+
+background:linear-gradient(135deg,#2563eb,#4f8cff);
+
+border:none;
+
+color:white;
+
+padding:14px 22px;
+
+border-radius:12px;
+
+cursor:pointer;
+
+font-weight:600;
+
+display:flex;
+
+align-items:center;
+
+gap:8px;
+
+transition:.25s;
+
+box-shadow:0 10px 25px rgba(37,99,235,.35);
+
+}
+
+.add-user-btn:hover{
+
+transform:translateY(-3px);
+
+box-shadow:0 18px 35px rgba(37,99,235,.45);
+
+}
+
+/* ==========================================================
+   KPI CARDS
+========================================================== */
+
+.users-stats{
+
+display:grid;
+
+grid-template-columns:repeat(3,1fr);
+
+gap:20px;
+
+}
+
+.stat-card{
+
+background:linear-gradient(145deg,#18283d,#101c2d);
+
+border-radius:18px;
+
+padding:24px;
+
+display:flex;
+
+align-items:center;
+
+gap:18px;
+
+box-shadow:0 14px 35px rgba(0,0,0,.25);
+
+transition:.3s;
+
+}
+
+.stat-card:hover{
+
+transform:translateY(-4px);
+
+}
+
+.stat-icon{
+
+font-size:36px;
+
+color:#2ea8ff;
+
+}
+
+.stat-icon.admin{
+
+color:#ffb020;
+
+}
+
+.stat-icon.analyst{
+
+color:#22c55e;
+
+}
+
+.stat-card small{
+
+display:block;
+
+color:#8ea6c0;
+
+margin-bottom:6px;
+
+}
+
+.stat-card h2{
+
+font-size:32px;
+
+color:white;
+
+}
+
+/* ==========================================================
+   TOOLBAR
+========================================================== */
+
+.users-toolbar{
+
+display:flex;
+
+gap:18px;
+
+flex-wrap:wrap;
+
+align-items:center;
+
+}
+
+.search-box{
+
+flex:1;
+
+display:flex;
+
+align-items:center;
+
+gap:12px;
+
+background:#18283d;
+
+padding:13px 18px;
+
+border-radius:12px;
+
+color:#9fb4d9;
+
+}
+
+.search-box input{
+
+flex:1;
+
+background:none;
+
+border:none;
+
+outline:none;
+
+color:white;
+
+font-size:15px;
+
+}
+
+.users-toolbar select{
+
+background:#18283d;
+
+color:white;
+
+border:none;
+
+padding:13px 18px;
+
+border-radius:12px;
+
+cursor:pointer;
+
+min-width:180px;
+
+}
+
+/* ==========================================================
+   TABLE
+========================================================== */
+
+.users-table-wrapper{
+
+overflow:auto;
+
+background:linear-gradient(145deg,#18283d,#101c2d);
+
+border-radius:18px;
+
+box-shadow:0 15px 35px rgba(0,0,0,.25);
+
+}
+
+.users-table{
+
+width:100%;
+
+border-collapse:collapse;
+
+}
+
+.users-table thead{
+
+background:#101b2b;
+
+}
+
+.users-table th{
+
+padding:18px;
+
+text-align:left;
+
+color:#9fb4d9;
+
+font-size:14px;
+
+font-weight:600;
+
+}
+
+.users-table td{
+
+padding:18px;
+
+border-top:1px solid rgba(255,255,255,.06);
+
+color:white;
+
+vertical-align:middle;
+
+}
+
+.users-table tbody tr{
+
+transition:.2s;
+
+}
+
+.users-table tbody tr:hover{
+
+background:rgba(255,255,255,.03);
+
+}
+
+/* ==========================================================
+   USER CELL
+========================================================== */
+
+.user-cell{
+
+display:flex;
+
+align-items:center;
+
+gap:14px;
+
+}
+
+.avatar{
+
+width:46px;
+
+height:46px;
+
+border-radius:50%;
+
+background:linear-gradient(135deg,#2563eb,#2ea8ff);
+
+display:flex;
+
+align-items:center;
+
+justify-content:center;
+
+font-size:18px;
+
+font-weight:700;
+
+color:white;
+
+box-shadow:0 8px 20px rgba(37,99,235,.35);
+
+}
+
+.email-cell{
+
+display:flex;
+
+align-items:center;
+
+gap:8px;
+
+color:#c8d8ea;
+
+}
+/* ==========================================================
+   ROLE BADGES
+========================================================== */
+
+.role{
+
+padding:6px 14px;
+
+border-radius:30px;
+
+font-size:13px;
+
+font-weight:600;
+
+text-transform:capitalize;
+
+display:inline-block;
+
+}
+
+.role.admin{
+
+background:rgba(255,176,32,.15);
+
+color:#ffb020;
+
+}
+
+.role.analyst{
+
+background:rgba(34,197,94,.15);
+
+color:#22c55e;
+
+}
+
+/* ==========================================================
+   STATUS
+========================================================== */
+
+.status-badge{
+
+display:inline-flex;
+
+align-items:center;
+
+gap:8px;
+
+font-size:13px;
+
+font-weight:600;
+
+color:#22c55e;
+
+}
+
+.status-badge svg{
+
+font-size:9px;
+
+}
+
+/* ==========================================================
+   DELETE BUTTON
+========================================================== */
+
+.delete-user-btn{
+
+background:#ef4444;
+
+color:white;
+
+border:none;
+
+padding:10px 16px;
+
+border-radius:10px;
+
+cursor:pointer;
+
+display:flex;
+
+align-items:center;
+
+gap:8px;
+
+font-weight:600;
+
+transition:.25s;
+
+}
+
+.delete-user-btn:hover{
+
+background:#dc2626;
+
+transform:translateY(-2px);
+
+}
+
+/* ==========================================================
+   EMPTY / LOADING
+========================================================== */
+
+.loading-users,
+
+.empty-users{
+
+background:linear-gradient(145deg,#18283d,#101c2d);
+
+padding:60px;
+
+border-radius:18px;
+
+text-align:center;
+
+color:#9fb4d9;
+
+box-shadow:0 14px 35px rgba(0,0,0,.25);
+
+}
+
+.empty-users svg{
+
+font-size:60px;
+
+margin-bottom:16px;
+
+color:#2ea8ff;
+
+}
+
+.empty-users h3{
+
+color:white;
+
+margin-bottom:10px;
+
+}
+
+/* ==========================================================
+   MODAL
+========================================================== */
+
+.modal-overlay{
+
+position:fixed;
+
+inset:0;
+
+background:rgba(0,0,0,.65);
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+z-index:999;
+
+backdrop-filter:blur(6px);
+
+}
+
+.user-modal{
+
+background:#162235;
+
+padding:30px;
+
+border-radius:18px;
+
+width:430px;
+
+max-width:92%;
+
+display:flex;
+
+flex-direction:column;
+
+gap:16px;
+
+box-shadow:0 20px 50px rgba(0,0,0,.45);
+
+animation:popup .25s ease;
+
+}
+
+.user-modal h2{
+
+color:white;
+
+display:flex;
+
+align-items:center;
+
+gap:10px;
+
+margin-bottom:8px;
+
+}
+
+.user-modal input,
+
+.user-modal select{
+
+padding:14px;
+
+border:none;
+
+border-radius:12px;
+
+background:#1b2b40;
+
+color:white;
+
+font-size:15px;
+
+outline:none;
+
+}
+
+.user-modal input:focus,
+
+.user-modal select:focus{
+
+outline:2px solid #2563eb;
+
+}
+
+.password-hint{
+
+color:#8ea6c0;
+
+font-size:12px;
+
+margin-top:-6px;
+
+}
+
+.modal-buttons{
+
+display:flex;
+
+gap:12px;
+
+margin-top:10px;
+
+}
+
+.create-btn{
+
+flex:1;
+
+background:#2563eb;
+
+color:white;
+
+border:none;
+
+padding:14px;
+
+border-radius:12px;
+
+cursor:pointer;
+
+font-weight:600;
+
+transition:.25s;
+
+}
+
+.create-btn:hover{
+
+background:#1d4ed8;
+
+}
+
+.create-btn:disabled{
+
+opacity:.6;
+
+cursor:not-allowed;
+
+}
+
+.cancel-btn{
+
+flex:1;
+
+background:#24344d;
+
+color:white;
+
+border:none;
+
+padding:14px;
+
+border-radius:12px;
+
+cursor:pointer;
+
+font-weight:600;
+
+transition:.25s;
+
+}
+
+.cancel-btn:hover{
+
+background:#334b69;
+
+}
+
+/* ==========================================================
+   RESPONSIVE
+========================================================== */
+
+@media(max-width:1000px){
+
+.users-stats{
+
+grid-template-columns:1fr;
+
+}
+
+.users-toolbar{
+
+flex-direction:column;
+
+align-items:stretch;
+
+}
+
+.search-box{
+
+width:100%;
+
+}
+
+.users-toolbar select{
+
+width:100%;
+
+}
+
+}
+
+@media(max-width:700px){
+
+.users-header{
+
+flex-direction:column;
+
+align-items:flex-start;
+
+}
+
+.users-header h1{
+
+font-size:28px;
+
+}
+
+.users-page{
+
+padding:18px;
+
+}
+
+.users-table{
+
+min-width:850px;
+
+}
+
+}
+
+/* ==========================================================
+   ANIMATIONS
+========================================================== */
+
+@keyframes popup{
+
+from{
+
+opacity:0;
+
+transform:translateY(20px) scale(.96);
+
+}
+
+to{
+
+opacity:1;
+
+transform:translateY(0) scale(1);
+
+}
+
+}
+
+@keyframes fadeUsers{
+
+from{
+
+opacity:0;
+
+transform:translateY(20px);
+
+}
+
+to{
+
+opacity:1;
+
+transform:translateY(0);
+
+}
+
+}
