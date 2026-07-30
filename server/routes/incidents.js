@@ -27,6 +27,10 @@ router.get(
                 username
             } = req.user;
 
+            console.log(
+                "STEP 1: incidents route reached"
+            );
+
             // --------------------------------------------------
             // ADMIN
             // --------------------------------------------------
@@ -44,18 +48,36 @@ router.get(
                         username
                     };
 
+            console.log(
+                "STEP 2: incident filter:",
+                filter
+            );
+
             // --------------------------------------------------
             // FETCH INCIDENTS
             // --------------------------------------------------
+
+            console.log(
+                "STEP 3: fetching incidents from MongoDB..."
+            );
 
             const incidents =
                 await Incident.getAll(
                     filter
                 );
 
+            console.log(
+                "STEP 4: incidents fetched:",
+                incidents.length
+            );
+
             // --------------------------------------------------
             // AUDIT
             // --------------------------------------------------
+
+            console.log(
+                "STEP 5: writing audit log..."
+            );
 
             await logAudit({
 
@@ -84,9 +106,17 @@ router.get(
 
             });
 
+            console.log(
+                "STEP 6: audit completed"
+            );
+
             // --------------------------------------------------
             // RESPONSE
             // --------------------------------------------------
+
+            console.log(
+                "STEP 7: sending incidents response"
+            );
 
             return res.json({
 
@@ -102,6 +132,11 @@ router.get(
         }
 
         catch (err) {
+
+            console.error(
+                "INCIDENT ROUTE ERROR:",
+                err
+            );
 
             next(err);
 

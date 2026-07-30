@@ -92,51 +92,33 @@ const incidentSchema = new mongoose.Schema(
         detection: {
 
             mlScore: {
-
                 type: Number,
-
                 default: 0
-
             },
 
             heuristicScore: {
-
                 type: Number,
-
                 default: 0
-
             },
 
             anomalyScore: {
-
                 type: Number,
-
                 default: 0
-
             },
 
             ensembleScore: {
-
                 type: Number,
-
                 default: 0
-
             },
 
             confidence: {
-
                 type: Number,
-
                 default: 0
-
             },
 
             latencyMs: {
-
                 type: Number,
-
                 default: 0
-
             }
 
         },
@@ -148,27 +130,18 @@ const incidentSchema = new mongoose.Schema(
         mitigation: {
 
             actionsTaken: {
-
                 type: [String],
-
                 default: []
-
             },
 
             ipBlocked: {
-
                 type: Boolean,
-
                 default: true
-
             },
 
             effectivenessPct: {
-
                 type: Number,
-
                 default: 99.2
-
             }
 
         },
@@ -180,7 +153,6 @@ const incidentSchema = new mongoose.Schema(
         recommendations: {
 
             type: [String],
-
             default: []
 
         },
@@ -237,9 +209,7 @@ const incidentSchema = new mongoose.Schema(
     },
 
     {
-
         timestamps: true
-
     }
 );
 
@@ -317,11 +287,47 @@ incidentSchema.statics.getAll =
 
         }
 
-        return await this.find(filter)
-            .sort({
-                createdAt: -1
-            })
-            .lean();
+        console.log(
+            "Incident.getAll() filter:",
+            filter
+        );
+
+        try {
+
+            const incidents =
+                await this.find(filter)
+
+                    .sort({
+                        createdAt: -1
+                    })
+
+                    .limit(500)
+
+                    .maxTimeMS(5000)
+
+                    .lean()
+
+                    .exec();
+
+            console.log(
+                "Incident.getAll() returned:",
+                incidents.length
+            );
+
+            return incidents;
+
+        }
+
+        catch (err) {
+
+            console.error(
+                "Incident.getAll() MongoDB query failed:",
+                err.message
+            );
+
+            throw err;
+
+        }
 
     };
 
@@ -346,11 +352,18 @@ incidentSchema.statics.getRecent =
         }
 
         return await this.find(filter)
+
             .sort({
                 createdAt: -1
             })
+
             .limit(limit)
-            .lean();
+
+            .maxTimeMS(5000)
+
+            .lean()
+
+            .exec();
 
     };
 
@@ -372,7 +385,12 @@ incidentSchema.statics.getById =
         }
 
         return await this.findById(id)
-            .lean();
+
+            .maxTimeMS(5000)
+
+            .lean()
+
+            .exec();
 
     };
 
@@ -464,6 +482,10 @@ incidentSchema.statics.resolveAll =
         );
 
     };
+
+// ======================================================
+// EXPORT
+// ======================================================
 
 module.exports =
     mongoose.model(
