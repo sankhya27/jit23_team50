@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import MainLayout from "../components/layout/MainLayout";
 import { getHistory } from "../api";
@@ -9,6 +9,16 @@ import "../styles/detectionHistory.css";
 export default function DetectionHistory() {
 
     const [history, setHistory] = useState([]);
+
+    const [summary, setSummary] = useState({
+        totalPackets: 0,
+        allowed: 0,
+        blocked: 0
+    });
+
+    const [page, setPage] = useState(1);
+
+    const rowsPerPage = 20;
 
     const [search, setSearch] = useState("");
 
@@ -30,6 +40,12 @@ export default function DetectionHistory() {
 
             setHistory(data.history || []);
 
+            setSummary({
+                totalPackets: data.totalPackets ?? data.totalRecords ?? 0,
+                allowed: data.allowed ?? 0,
+                blocked: data.blocked ?? 0
+            });
+
         }
 
         catch (err) {
@@ -42,13 +58,32 @@ export default function DetectionHistory() {
 
     const filtered = history.filter(item =>
 
-        item.sourceIP.toLowerCase().includes(search.toLowerCase()) ||
+        (item.sourceIP || "").toLowerCase().includes(search.toLowerCase()) ||
 
-        item.attackType.toLowerCase().includes(search.toLowerCase()) ||
+        (item.attackType || "").toLowerCase().includes(search.toLowerCase()) ||
 
-        item.username.toLowerCase().includes(search.toLowerCase())
+        (item.username || "").toLowerCase().includes(search.toLowerCase())
 
     );
+
+    const totalPages = Math.max(
+        1,
+        Math.ceil(filtered.length / rowsPerPage)
+    );
+
+    const currentRows = useMemo(() =>
+        filtered.slice(
+            (page - 1) * rowsPerPage,
+            page * rowsPerPage
+        ),
+        [filtered, page]
+    );
+
+    useEffect(() => {
+
+        setPage(1);
+
+    }, [search]);
 
     return (
 
@@ -76,7 +111,7 @@ export default function DetectionHistory() {
 
                     <div className="summary-card">
 
-                        <h2>{history.length}</h2>
+                        <h2>{summary.totalPackets}</h2>
 
                         <p>Total Packets</p>
 
@@ -88,7 +123,7 @@ export default function DetectionHistory() {
 
                             {
 
-                                history.filter(x=>x.decision==="Allowed").length
+                                summary.allowed
 
                             }
 
@@ -104,7 +139,7 @@ export default function DetectionHistory() {
 
                             {
 
-                                history.filter(x=>x.decision==="Blocked").length
+                                summary.blocked
 
                             }
 
@@ -144,7 +179,7 @@ export default function DetectionHistory() {
 
                         {
 
-                            filtered.map(item=>(
+                            currentRows.map(item=>(
 
                                 <tr key={item._id}>
 
@@ -164,11 +199,11 @@ export default function DetectionHistory() {
 
                                     <td>
 
-                                        {
-
-                                            Math.round(item.confidence*100)
-
-                                        }%
+                                        {Math.round(
+                                            (item.confidence <= 1
+                                                ? item.confidence * 100
+                                                : item.confidence) || 0
+                                        )}%
 
                                     </td>
 
@@ -219,6 +254,26 @@ export default function DetectionHistory() {
                     </tbody>
 
                 </table>
+
+                <div className="history-pagination">
+
+                    <button
+                        disabled={page === 1}
+                        onClick={() => setPage(current => current - 1)}
+                    >
+                        Previous
+                    </button>
+
+                    <span>{page} / {totalPages}</span>
+
+                    <button
+                        disabled={page >= totalPages}
+                        onClick={() => setPage(current => current + 1)}
+                    >
+                        Next
+                    </button>
+
+                </div>
 
             </div>
 

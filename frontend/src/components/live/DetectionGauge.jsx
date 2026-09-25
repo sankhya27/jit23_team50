@@ -4,7 +4,13 @@ export default function DetectionGauge({ value }) {
 
     const circumference = 2 * Math.PI * radius;
 
-    const progress = circumference - (value / 100) * circumference;
+    const hasValue = Number.isFinite(Number(value));
+
+    const numericValue = hasValue
+        ? Math.max(0, Math.min(100, Number(value)))
+        : 0;
+
+    const progress = circumference - (numericValue / 100) * circumference;
 
     return (
 
@@ -12,7 +18,7 @@ export default function DetectionGauge({ value }) {
 
             <h3>
 
-                Detection Effectiveness
+                Mitigation Effectiveness
 
             </h3>
 
@@ -73,11 +79,19 @@ export default function DetectionGauge({ value }) {
 
                 >
 
-                    {value}%
+                    {hasValue ? `${numericValue}%` : "N/A"}
 
                 </text>
 
             </svg>
+
+            {!hasValue && (
+
+                <p className="gauge-note">
+                    Based on blocked versus processed traffic
+                </p>
+
+            )}
 
         </div>
 

@@ -8,6 +8,7 @@ import {
     drawSectionTitle,
     drawWatermark
 } from "./pdfHelpers";
+import { formatPercent } from "./normalizeAnalytics";
 
 export function drawSummaryPage(doc, analytics) {
 
@@ -58,7 +59,10 @@ export function drawSummaryPage(doc, analytics) {
         analytics?.averageLatency || 0;
 
     const effectiveness =
-        analytics?.averageEffectiveness || 0;
+        analytics?.averageEffectiveness ??
+        analytics?.mitigationEffectiveness ??
+        analytics?.averageConfidence ??
+        null;
 
     //------------------------------------------------
 
@@ -123,8 +127,8 @@ export function drawSummaryPage(doc, analytics) {
         158,
         80,
         40,
-        "ML Accuracy",
-        `${effectiveness}%`,
+        "Detection Effectiveness",
+        formatPercent(effectiveness),
         [37,99,235]
     );
 
@@ -180,15 +184,21 @@ export function drawSummaryPage(doc, analytics) {
     );
 
     doc.text(
-        `Detection Effectiveness : ${effectiveness}%`,
+        `Detection Effectiveness : ${formatPercent(effectiveness)}`,
         20,
         258
     );
 
     doc.text(
-        "System Status : Operational",
+        `Average Confidence : ${formatPercent(analytics?.averageConfidence)}`,
         20,
         268
+    );
+
+    doc.text(
+        `Report Generated : ${new Date(analytics?.generatedAt || Date.now()).toLocaleString()}`,
+        20,
+        278
     );
 
     drawFooter(doc,2);

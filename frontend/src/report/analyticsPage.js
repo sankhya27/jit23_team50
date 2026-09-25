@@ -1,5 +1,3 @@
-// src/report/analyticsPage.js
-
 import {
     drawFooter,
     drawHeader,
@@ -8,217 +6,85 @@ import {
     drawSectionTitle,
     drawWatermark
 } from "./pdfHelpers";
+import { formatPercent } from "./normalizeAnalytics";
 
-export function drawAnalyticsPage(
-    doc,
-    analytics,
-    charts
-) {
+function drawChartImage(doc, image, x, y, width, height) {
+    if (!image) return;
 
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(x, y, width, height, 4, 4, "F");
+    doc.setDrawColor(220);
+    doc.roundedRect(x, y, width, height, 4, 4);
+    doc.addImage(image, "PNG", x + 4, y + 4, width - 8, height - 8);
+}
+
+export function drawAnalyticsPage(doc, analytics, charts) {
     doc.addPage();
 
     drawPageBackground(doc);
-
     drawHeader(doc);
-
     drawWatermark(doc);
 
-    drawSectionTitle(
-        doc,
-        "Analytics Dashboard",
-        36
-    );
+    drawSectionTitle(doc, "Analytics Dashboard", 36);
 
     doc.setFont("helvetica", "normal");
-
     doc.setFontSize(11);
-
     doc.setTextColor(100);
-
     doc.text(
-        "Machine Learning based traffic analysis and detection statistics.",
+        "Real analytics captured at report generation time from live system data.",
         20,
         47
     );
 
-    //----------------------------------------------------------
-    // Live Network Chart
-    //----------------------------------------------------------
+    drawChartImage(doc, charts?.hourlyChart, 18, 56, 174, 58);
 
-    doc.setFont(
-        "helvetica",
-        "bold"
-    );
+    drawChartImage(doc, charts?.attackTypesChart, 18, 120, 84, 58);
+    drawChartImage(doc, charts?.weeklyChart, 108, 120, 84, 58);
 
-    doc.setFontSize(15);
-
-    doc.setTextColor(7,26,45);
-
-    doc.text(
-        "Live Network Activity",
-        20,
-        62
-    );
-
-    doc.setDrawColor(
-        0,
-        184,
-        255
-    );
-
-    doc.line(
-        20,
-        65,
-        90,
-        65
-    );
-
-    if (charts?.networkChart) {
-
-        doc.setFillColor(255,255,255);
-
-        doc.roundedRect(
-            18,
-            72,
-            174,
-            95,
-            4,
-            4,
-            "F"
-        );
-
-        doc.setDrawColor(220);
-
-        doc.roundedRect(
-            18,
-            72,
-            174,
-            95,
-            4,
-            4
-        );
-
-        doc.addImage(
-
-            charts.networkChart,
-
-            "PNG",
-
-            24,
-
-            78,
-
-            162,
-
-            82
-
-        );
-
-    }
-
-    else {
-
-        drawInfoBox(
-
-            doc,
-
-            18,
-
-            72,
-
-            174,
-
-            42,
-
-            "Chart Status",
-
-            "Dashboard chart not detected. Open the Dashboard and generate the report from there to include the live chart."
-
-        );
-
-    }
-
-    //----------------------------------------------------------
-    // Statistics
-    //----------------------------------------------------------
+    const effectiveness =
+        analytics.averageEffectiveness ??
+        analytics.mitigationEffectiveness ??
+        analytics.averageConfidence;
 
     drawInfoBox(
-
         doc,
-
         20,
-
-        180,
-
+        186,
         80,
-
-        40,
-
+        36,
         "Incidents",
-
-        `Total incidents detected : ${analytics.totalIncidents}`
-
+        `Total incidents: ${analytics.totalIncidents}\nResolved: ${analytics.resolved}\nActive: ${analytics.unresolved}`
     );
 
     drawInfoBox(
-
         doc,
-
         110,
-
-        180,
-
+        186,
         80,
-
-        40,
-
-        "Latency",
-
-        `${analytics.averageLatency} ms average detection time`
-
+        36,
+        "Detection Metrics",
+        `Avg latency: ${analytics.averageLatency} ms\nConfidence: ${formatPercent(analytics.averageConfidence)}\nEffectiveness: ${formatPercent(effectiveness)}`
     );
 
     drawInfoBox(
-
         doc,
-
         20,
-
-        228,
-
+        230,
         80,
-
-        40,
-
-        "Detection Accuracy",
-
-        `${analytics.averageEffectiveness}% effectiveness`
-
+        36,
+        "Live Traffic",
+        `Attacks detected: ${analytics.live?.attacksDetected ?? 0}\nNormal traffic: ${analytics.live?.normalTraffic ?? 0}\nPackets blocked: ${analytics.live?.packetsBlocked ?? 0}`
     );
 
     drawInfoBox(
-
         doc,
-
         110,
-
-        228,
-
+        230,
         80,
-
-        40,
-
-        "ML Engine",
-
-        "Random Forest Classifier\nStatus : Active"
-
+        36,
+        "Top Threat",
+        `Most common attack:\n${analytics.mostCommonAttack || "None"}`
     );
 
-    //----------------------------------------------------------
-
-    drawFooter(
-        doc,
-        3
-    );
-
+    drawFooter(doc, 3);
 }

@@ -136,7 +136,7 @@ const incidentSchema = new mongoose.Schema(
 
             ipBlocked: {
                 type: Boolean,
-                default: true
+                default: false
             },
 
             effectivenessPct: {
@@ -203,6 +203,26 @@ const incidentSchema = new mongoose.Schema(
             type: String,
 
             default: null
+
+        },
+
+        // ======================================================
+        // INCIDENT WORKFLOW STATUS
+        // ======================================================
+
+        status: {
+
+            type: String,
+
+            enum: [
+                "Detected",
+                "Blocked",
+                "Resolved"
+            ],
+
+            default: "Detected",
+
+            index: true
 
         }
 
@@ -275,7 +295,7 @@ incidentSchema.statics.createIncident =
 // ======================================================
 
 incidentSchema.statics.getAll =
-    async function(filter = {}) {
+    async function(filter = {}, limit = 500) {
 
         if (
             mongoose.connection.readyState !== 1
@@ -287,10 +307,10 @@ incidentSchema.statics.getAll =
 
         }
 
-        console.log(
-            "Incident.getAll() filter:",
-            filter
-        );
+        const effectiveLimit =
+            !limit || limit <= 0
+                ? 500
+                : Math.min(limit, 1000);
 
         try {
 
@@ -301,18 +321,13 @@ incidentSchema.statics.getAll =
                         createdAt: -1
                     })
 
-                    .limit(500)
+                    .limit(effectiveLimit)
 
-                    .maxTimeMS(5000)
+                    .maxTimeMS(4000)
 
                     .lean()
 
                     .exec();
-
-            console.log(
-                "Incident.getAll() returned:",
-                incidents.length
-            );
 
             return incidents;
 

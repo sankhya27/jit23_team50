@@ -1,160 +1,157 @@
 import { useEffect, useState } from "react";
 
 const API = "http://localhost:5001/api";
+const ROWS_PER_PAGE = 8;
 
 export default function IncidentTimeline() {
 
-    const [incidents,setIncidents]=useState([]);
+    const [incidents, setIncidents] = useState([]);
+    const [page, setPage] = useState(1);
 
-    useEffect(()=>{
+    useEffect(() => {
 
         load();
 
-        const timer=setInterval(load,3000);
+        const timer = setInterval(load, 3000);
 
-        return()=>clearInterval(timer);
+        return () => clearInterval(timer);
 
-    },[]);
+    }, []);
 
-    async function load(){
+    async function load() {
 
-        try{
+        try {
 
-            const token=localStorage.getItem("token");
+            const token = localStorage.getItem("token");
 
-            const res=await fetch(
-
-                `${API}/incidents`,
-
+            const res = await fetch(
+                `${API}/incidents?limit=500`,
                 {
-
-                    headers:{
-
-                        Authorization:`Bearer ${token}`
-
-                    }
-
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    },
+                    cache: "no-store"
                 }
-
             );
 
-            const data=await res.json();
+            if (!res.ok) return;
 
-            setIncidents(
-
-                (data.incidents || [])
-
-            );
+            const data = await res.json();
+            setIncidents(data.incidents || []);
 
         }
 
-        catch(err){
+        catch (err) {
 
-            console.log(err);
+            console.error("Incident timeline error:", err);
 
         }
 
     }
 
-    function color(level){
+    function color(level) {
 
-        switch(level){
+        switch (String(level || "").toLowerCase()) {
 
-            case "critical":
-
-                return "#ef4444";
-
-            case "high":
-
-                return "#f97316";
-
-            case "medium":
-
-                return "#eab308";
-
-            default:
-
-                return "#22c55e";
+            case "critical": return "#ef4444";
+            case "high": return "#f97316";
+            case "medium": return "#eab308";
+            default: return "#22c55e";
 
         }
 
     }
 
-    return(
+    const totalPages = Math.max(
+        1,
+        Math.ceil(incidents.length / ROWS_PER_PAGE)
+    );
 
-        <div className="chart-card">
+    const currentRows = incidents.slice(
+        (page - 1) * ROWS_PER_PAGE,
+        page * ROWS_PER_PAGE
+    );
 
-            <h3>
+    useEffect(() => {
 
-                🕒 Incident Timeline
+        if (page > totalPages) setPage(totalPages);
 
-            </h3>
+    }, [page, totalPages]);
 
-            {
+    return (
 
-                incidents.length===0 ?
+        <div className="chart-card timeline-card">
 
-                <p>No incidents yet.</p>
+            <div className="timeline-heading">
 
-                :
+                <div>
+                    <span className="card-eyebrow">Latest events</span>
+                    <h3>Incident Timeline</h3>
+                </div>
 
-                incidents.map(item=>(
+                <span className="timeline-count">{incidents.length} loaded</span>
 
-                    <div
+            </div>
 
-                        className="timeline-item"
+            {!incidents.length ? (
 
-                        key={item._id}
+                <p className="timeline-empty">No incidents yet.</p>
 
-                    >
+            ) : (
 
-                        <div
+                <>
 
-                            className="timeline-dot"
+                    <div className="timeline-list">
 
-                            style={{
+                        {currentRows.map(item => (
 
-                                background:color(item.severity)
+                            <div className="timeline-item" key={item._id}>
 
-                            }}
+                                <div
+                                    className="timeline-dot"
+                                    style={{ background: color(item.severity) }}
+                                />
 
-                        />
+                                <div className="timeline-info">
+                                    <strong>{item.attackType || "Unknown"}</strong>
+                                    <span>{(item.severity || "unknown").toUpperCase()}</span>
+                                </div>
 
-                        <div className="timeline-info">
+                                <small>
+                                    {item.createdAt
+                                        ? new Date(item.createdAt).toLocaleTimeString()
+                                        : "Unknown"}
+                                </small>
 
-                            <strong>
+                            </div>
 
-                                {item.attackType}
-
-                            </strong>
-
-                            <span>
-
-                                {item.severity.toUpperCase()}
-
-                            </span>
-
-                        </div>
-
-                        <small>
-
-                            {
-
-                                new Date(
-
-                                    item.createdAt
-
-                                ).toLocaleTimeString()
-
-                            }
-
-                        </small>
+                        ))}
 
                     </div>
 
-                ))
+                    <div className="timeline-pagination">
 
-            }
+                        <button
+                            disabled={page === 1}
+                            onClick={() => setPage(current => current - 1)}
+                        >
+                            Previous
+                        </button>
+
+                        <span>{page} / {totalPages}</span>
+
+                        <button
+                            disabled={page >= totalPages}
+                            onClick={() => setPage(current => current + 1)}
+                        >
+                            Next
+                        </button>
+
+                    </div>
+
+                </>
+
+            )}
 
         </div>
 

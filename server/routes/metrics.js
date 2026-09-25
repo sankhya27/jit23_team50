@@ -23,6 +23,7 @@ router.get("/", async (req, res) => {
         const totalIncidentsCount = await Incident.countDocuments();
         const totalDetectionsCount = await DetectionHistory.countDocuments();
         const blockedDetectionsCount = await DetectionHistory.countDocuments({ decision: "Blocked" });
+        const allowedDetectionsCount = await DetectionHistory.countDocuments({ decision: "Allowed" });
 
         // Sum overall historical packets/traffic from incidents if available
         const incidentAgg = await Incident.aggregate([
@@ -48,8 +49,15 @@ router.get("/", async (req, res) => {
             packets_sent: blendedPacketsSent,
             attacks_detected: blendedAttacksDetected,
             packets_blocked: blendedPacketsBlocked,
+            effectiveness_pct: null,
             total_historical_incidents: totalIncidentsCount,
             total_historical_detections: totalDetectionsCount
+            ,
+            mitigation_effectiveness_pct: totalDetectionsCount > 0
+                ? Number(((blockedDetectionsCount / totalDetectionsCount) * 100).toFixed(1))
+                : null,
+            total_historical_allowed: allowedDetectionsCount,
+            total_historical_blocked: blockedDetectionsCount
         });
     } catch (err) {
         console.error("Metrics route fallback error:", err.message);

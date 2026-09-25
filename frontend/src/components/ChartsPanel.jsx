@@ -116,10 +116,12 @@ export default function ChartsPanel({ metrics }) {
 
                 <div className="summary-card">
 
-                    <span>Detection Accuracy</span>
+                    <span>Mitigation Effectiveness</span>
 
                     <h2>
-                        {metrics.effectiveness_pct}%
+                        {metrics.mitigation_effectiveness_pct == null
+                            ? "N/A"
+                            : `${metrics.mitigation_effectiveness_pct}%`}
                     </h2>
 
                 </div>

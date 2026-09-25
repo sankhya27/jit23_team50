@@ -22,7 +22,9 @@ import {
 
     FaSearch,
 
-    FaFilter
+    FaFilter,
+
+    FaSyncAlt
 
 } from "react-icons/fa";
 
@@ -44,11 +46,38 @@ function authHeader() {
 
 export default function Reports() {
 
-    const [analytics, setAnalytics] = useState(null);
+    const [analytics, setAnalytics] = useState({
+
+        totalIncidents: 0,
+
+        averageConfidence: 0,
+
+        averageLatency: 0,
+
+        resolved: 0,
+
+        unresolved: 0,
+
+        mostCommonAttack: "None",
+
+        severity: {
+            critical: 0,
+            high: 0,
+            medium: 0,
+            low: 0
+        }
+
+    });
 
     const [incidents, setIncidents] = useState([]);
 
     const [loading, setLoading] = useState(true);
+
+    const [refreshing, setRefreshing] = useState(false);
+
+    const [exporting, setExporting] = useState("");
+
+    const [error, setError] = useState("");
 
     const [lastGenerated, setLastGenerated] = useState("-");
 
@@ -68,7 +97,15 @@ export default function Reports() {
 
     const REPORT_ROWS_PER_PAGE = 20;
 
-    async function loadData() {
+    async function loadData(showLoading = true) {
+
+        if (showLoading) {
+
+            setLoading(true);
+
+        }
+
+        setError("");
 
         try {
 
@@ -78,7 +115,9 @@ export default function Reports() {
 
                 {
 
-                    headers: authHeader()
+                    headers: authHeader(),
+
+                    cache: "no-store"
 
                 }
 
@@ -90,11 +129,13 @@ export default function Reports() {
 
             const incidentRes = await fetch(
 
-                `${API}/incidents`,
+                `${API}/incidents?limit=0`,
 
                 {
 
-                    headers: authHeader()
+                    headers: authHeader(),
+
+                    cache: "no-store"
 
                 }
 
@@ -118,29 +159,83 @@ export default function Reports() {
 
             }
 
+            return {
+
+                analytics: analyticsData,
+
+                incidents: Array.isArray(incidentData)
+                    ? incidentData
+                    : incidentData.incidents || []
+
+            };
+
         }
 
         catch (err) {
 
-            console.log(err);
+            console.error(err);
+
+            setError(
+                err.message ||
+                "Could not load report data."
+            );
 
         }
 
         finally {
 
-            setLoading(false);
+            if (showLoading) {
+
+                setLoading(false);
+
+            }
 
         }
 
     }
 
+    async function refreshData() {
+
+        if (refreshing) {
+
+            return null;
+
+        }
+
+        setRefreshing(true);
+
+        const result = await loadData(false);
+
+        setRefreshing(false);
+
+        return result;
+
+    }
+
     async function generateReport() {
+
+        setExporting("pdf");
+
+        const latest = await refreshData();
+
+        if (!latest) {
+
+            setExporting("");
+
+            return;
+
+        }
 
         await generatePDF(
 
-            analytics,
+            latest.analytics,
 
-            filteredIncidents
+            filterIncidents(
+                latest.incidents,
+                severityFilter,
+                attackFilter,
+                search
+            )
 
         );
 
@@ -150,9 +245,23 @@ export default function Reports() {
 
         );
 
+        setExporting("");
+
     }
 
-    function exportCSV() {
+    async function exportCSV() {
+
+        setExporting("csv");
+
+        const latest = await refreshData();
+
+        if (!latest) {
+
+            setExporting("");
+
+            return;
+
+        }
 
         const rows = [
 
@@ -174,7 +283,12 @@ export default function Reports() {
 
         ];
 
-        filteredIncidents.forEach(item => {
+        filterIncidents(
+            latest.incidents,
+            severityFilter,
+            attackFilter,
+            search
+        ).forEach(item => {
 
             rows.push([
 
@@ -216,11 +330,7 @@ export default function Reports() {
 
         const csv = rows
 
-            .map(
-
-                row => row.join(",")
-
-            )
+            .map(row => row.map(csvCell).join(","))
 
             .join("\n");
 
@@ -250,6 +360,58 @@ export default function Reports() {
 
         link.click();
 
+        URL.revokeObjectURL(url);
+
+        setLastGenerated(
+
+            new Date().toLocaleString()
+
+        );
+
+        setExporting("");
+
+    }
+
+    function csvCell(value) {
+
+        const text = value == null ? "" : String(value);
+
+        return `"${text.replace(/"/g, '""')}"`;
+
+    }
+
+    function filterIncidents(
+        source,
+        severity,
+        attack,
+        query
+    ) {
+
+        const normalizedQuery = query.toLowerCase();
+
+        return source.filter(item => {
+
+            const sourceIP =
+                item.sourceIP ||
+                item.source_ip ||
+                "";
+
+            const itemSeverity =
+                String(item.severity || "")
+                    .trim()
+                    .toLowerCase();
+
+            return (
+                (severity === "All" || itemSeverity === severity.toLowerCase()) &&
+                (attack === "All" || item.attackType === attack) &&
+                (
+                    item.attackType?.toLowerCase().includes(normalizedQuery) ||
+                    sourceIP.toLowerCase().includes(normalizedQuery)
+                )
+            );
+
+        });
+
     }
 
     const attackOptions = useMemo(() => {
@@ -270,71 +432,12 @@ export default function Reports() {
 
     const filteredIncidents = useMemo(() => {
 
-        return incidents.filter(item => {
-
-            const severityOk =
-
-                severityFilter === "All"
-
-                    ||
-
-                item.severity === severityFilter;
-
-            const attackOk =
-
-                attackFilter === "All"
-
-                    ||
-
-                item.attackType === attackFilter;
-
-            const searchOk =
-
-                item.attackType
-
-                    ?.toLowerCase()
-
-                    .includes(
-
-                        search.toLowerCase()
-
-                    )
-
-                ||
-
-                item.sourceIP
-
-                    ?.toLowerCase()
-
-                    .includes(
-
-                        search.toLowerCase()
-
-                    )
-
-                ||
-
-                item.source_ip
-
-                    ?.toLowerCase()
-
-                    .includes(
-
-                        search.toLowerCase()
-
-                    );
-
-            return (
-
-                severityOk &&
-
-                attackOk &&
-
-                searchOk
-
-            );
-
-        });
+        return filterIncidents(
+            incidents,
+            severityFilter,
+            attackFilter,
+            search
+        );
 
     }, [
 
@@ -394,7 +497,29 @@ export default function Reports() {
 
                         </div>
 
+                        <button
+                            className="refresh-btn"
+                            onClick={refreshData}
+                            disabled={refreshing}
+                        >
+
+                            <FaSyncAlt className={refreshing ? "spin" : ""} />
+
+                            {refreshing ? "Refreshing" : "Refresh data"}
+
+                        </button>
+
                     </div>
+
+                    {error && (
+
+                        <div className="reports-error" role="alert">
+
+                            {error}
+
+                        </div>
+
+                    )}
 
                     <div className="reports-kpis">
 
@@ -412,7 +537,7 @@ export default function Reports() {
 
                                 <h2>
 
-                                    {analytics.totalIncidents || 0}
+                                    {analytics.totalIncidents ?? 0}
 
                                 </h2>
 
@@ -438,7 +563,7 @@ export default function Reports() {
 
                                 <h2>
 
-                                    {analytics.averageConfidence || 0}%
+                                    {analytics.averageConfidence ?? 0}%
 
                                 </h2>
 
@@ -464,7 +589,7 @@ export default function Reports() {
 
                                 <h2>
 
-                                    {analytics.averageLatency || 0} ms
+                                    {analytics.averageLatency ?? 0} ms
 
                                 </h2>
 
@@ -497,6 +622,22 @@ export default function Reports() {
                             </div>
 
                         </div>
+
+                    </div>
+
+                    <div className="severity-summary" aria-label="Incident severity distribution">
+
+                        {["critical", "high", "medium", "low"].map(level => (
+
+                            <div className={`severity-count ${level}`} key={level}>
+
+                                <span>{level}</span>
+
+                                <strong>{analytics.severity?.[level] ?? 0}</strong>
+
+                            </div>
+
+                        ))}
 
                     </div>
 
@@ -644,11 +785,15 @@ export default function Reports() {
 
                             onClick={generateReport}
 
+                            disabled={Boolean(exporting)}
+
                         >
 
                             <FaFilePdf />
 
-                            Generate PDF
+                            {exporting === "pdf"
+                                ? "Refreshing & generating..."
+                                : "Generate PDF"}
 
                         </button>
 
@@ -658,11 +803,15 @@ export default function Reports() {
 
                             onClick={exportCSV}
 
+                            disabled={Boolean(exporting)}
+
                         >
 
                             <FaFileCsv />
 
-                            Export CSV
+                            {exporting === "csv"
+                                ? "Refreshing & exporting..."
+                                : "Export CSV"}
 
                         </button>
 
@@ -750,11 +899,9 @@ export default function Reports() {
 
                                             <td>
 
-                                                {
-
-                                                    item.severity
-
-                                                }
+                                                <span className={`severity-pill ${item.severity}`}>
+                                                    {item.severity || "unknown"}
+                                                </span>
 
                                             </td>
 
@@ -875,7 +1022,7 @@ export default function Reports() {
 
                                 <strong>
 
-                                    {analytics.resolved || 0}
+                                    {analytics.resolved ?? 0}
 
                                 </strong>
 
@@ -891,7 +1038,7 @@ export default function Reports() {
 
                                 <strong>
 
-                                    {analytics.unresolved || 0}
+                                    {analytics.unresolved ?? 0}
 
                                 </strong>
 

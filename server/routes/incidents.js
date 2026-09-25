@@ -27,20 +27,6 @@ router.get(
                 username
             } = req.user;
 
-            console.log(
-                "STEP 1: incidents route reached"
-            );
-
-            // --------------------------------------------------
-            // ADMIN
-            // --------------------------------------------------
-
-            // Admin can see every incident.
-            //
-            // This includes simulator-generated incidents.
-            //
-            // --------------------------------------------------
-
             const filter =
                 role === "admin"
                     ? {}
@@ -48,38 +34,24 @@ router.get(
                         username
                     };
 
-            console.log(
-                "STEP 2: incident filter:",
-                filter
-            );
+            const requestedLimit =
+                Number.parseInt(
+                    req.query.limit,
+                    10
+                );
 
-            // --------------------------------------------------
-            // FETCH INCIDENTS
-            // --------------------------------------------------
-
-            console.log(
-                "STEP 3: fetching incidents from MongoDB..."
-            );
+            const limit =
+                Number.isFinite(requestedLimit) && requestedLimit > 0
+                    ? requestedLimit
+                    : 200;
 
             const incidents =
                 await Incident.getAll(
-                    filter
+                    filter,
+                    limit
                 );
 
-            console.log(
-                "STEP 4: incidents fetched:",
-                incidents.length
-            );
-
-            // --------------------------------------------------
-            // AUDIT
-            // --------------------------------------------------
-
-            console.log(
-                "STEP 5: writing audit log..."
-            );
-
-            await logAudit({
+            logAudit({
 
                 username,
 
@@ -105,18 +77,6 @@ router.get(
                 );
 
             });
-
-            console.log(
-                "STEP 6: audit completed"
-            );
-
-            // --------------------------------------------------
-            // RESPONSE
-            // --------------------------------------------------
-
-            console.log(
-                "STEP 7: sending incidents response"
-            );
 
             return res.json({
 
@@ -169,6 +129,86 @@ router.put(
     "/:id/resolve",
     verifyToken,
     resolveIncident
+);
+
+// ======================================================
+// MARK INCIDENT AS BLOCKED
+// ======================================================
+
+router.patch(
+    "/:id/block",
+    verifyToken,
+    async (req, res, next) => {
+
+        try {
+
+            if (req.user.role !== "admin") {
+
+                return res.status(403).json({
+
+                    success: false,
+
+                    error: "Only admins can block incidents."
+
+                });
+
+            }
+
+            const incident =
+                await Incident.findByIdAndUpdate(
+                    req.params.id,
+
+                    {
+                        $set: {
+                            status: "Blocked",
+
+                            "mitigation.ipBlocked": true
+                        },
+
+                        $addToSet: {
+                            "mitigation.actionsTaken":
+                                "IP blocked by administrator"
+                        }
+                    },
+
+                    {
+                        new: true,
+
+                        runValidators: true
+                    }
+                );
+
+            if (!incident) {
+
+                return res.status(404).json({
+
+                    success: false,
+
+                    error: "Incident not found."
+
+                });
+
+            }
+
+            return res.json({
+
+                success: true,
+
+                message: "Incident blocked successfully.",
+
+                incident
+
+            });
+
+        }
+
+        catch (err) {
+
+            next(err);
+
+        }
+
+    }
 );
 
 // ======================================================
@@ -249,6 +289,9 @@ async function resolveIncident(
 
         incident.resolved =
             true;
+
+        incident.status =
+            "Resolved";
 
         incident.resolvedAt =
             new Date();

@@ -1,171 +1,406 @@
 require("dotenv").config();
 
-const nodemailer = require("nodemailer");
-console.log("EMAIL_USER =", process.env.EMAIL_USER);
-console.log("EMAIL_PASS =", process.env.EMAIL_PASS ? "Loaded" : "Missing");
-const transporter = nodemailer.createTransport({
+const nodemailer =
+    require("nodemailer");
 
-    host: "smtp.gmail.com",
+const User =
+    require("../models/User");
 
-    port: 465,
 
-    secure: true,
+// =====================================================
+// MAIL TRANSPORT
+// =====================================================
 
-    auth: {
+const transporter =
+    nodemailer.createTransport({
 
-        user: process.env.EMAIL_USER,
+        host:
+            "smtp.gmail.com",
 
-        pass: process.env.EMAIL_PASS
+        port:
+            465,
+
+        secure:
+            true,
+
+        auth: {
+
+            user:
+                process.env.EMAIL_USER,
+
+            pass:
+                process.env.EMAIL_PASS
+
+        }
+
+    });
+
+
+// =====================================================
+// VERIFY MAIL SERVER
+// =====================================================
+
+transporter.verify(
+    (err) => {
+
+        if (err) {
+
+            console.log(
+                "MAIL SERVER ERROR"
+            );
+
+            console.log(err);
+
+        }
+
+        else {
+
+            console.log(
+                "✅ Mail server ready"
+            );
+
+        }
 
     }
+);
 
-});
-
-transporter.verify(function (err) {
-
-    if (err) {
-
-        console.log("MAIL SERVER ERROR");
-
-        console.log(err);
-
-    }
-
-    else {
-
-        console.log("✅ Mail server ready");
-
-    }
-
-});
 
 // =====================================================
 // SEND ATTACK ALERT
 // =====================================================
 
-async function sendAttackAlert(email, incident) {
+async function sendAttackAlert(
+    username,
+    incident
+) {
 
-    if (!email) {
+    try {
 
-        console.log("⚠ No email configured. Alert skipped.");
+        if (!username) {
 
-        return;
+            console.log(
+                "⚠ No username provided. Email skipped."
+            );
+
+            return false;
+
+        }
+
+
+        // -------------------------------------------------
+        // ALWAYS READ CURRENT USER SETTINGS
+        // -------------------------------------------------
+
+        const user =
+            await User.findOne({
+
+                username
+
+            });
+
+
+        if (!user) {
+
+            console.log(
+                `⚠ User ${username} not found. Email skipped.`
+            );
+
+            return false;
+
+        }
+
+
+        // -------------------------------------------------
+        // CHECK EMAIL NOTIFICATION SETTING
+        // -------------------------------------------------
+
+        const notificationsEnabled =
+            user.emailNotifications ??
+            true;
+
+
+        if (!notificationsEnabled) {
+
+            console.log(
+
+                `📭 Email notifications disabled for ${username}. Alert skipped.`
+
+            );
+
+            return false;
+
+        }
+
+
+        // -------------------------------------------------
+        // CHECK DESTINATION
+        // -------------------------------------------------
+
+        const destination =
+            user.alertEmail?.trim() ||
+            user.email?.trim();
+
+        if (!destination) {
+
+            console.log(
+
+                    `⚠ No alert email configured for ${username}.`
+
+            );
+
+            return false;
+
+        }
+
+
+        // -------------------------------------------------
+        // SEND EMAIL
+        // -------------------------------------------------
+
+        const info =
+            await transporter.sendMail({
+
+                from:
+                    `"DDoS Guard" <${process.env.EMAIL_USER}>`,
+
+                to:
+                    destination,
+
+                subject:
+                    `🚨 ${incident.severity.toUpperCase()} DDoS Attack Detected`,
+
+                html: `
+
+                <div
+                    style="
+                        font-family:Arial;
+                        padding:25px;
+                        background:#f5f7fb;
+                    "
+                >
+
+                    <div
+                        style="
+                            background:#081b2d;
+                            color:white;
+                            padding:18px;
+                            border-radius:8px;
+                        "
+                    >
+
+                        <h2>
+                            🚨 DDoS Guard Security Alert
+                        </h2>
+
+                    </div>
+
+
+                    <div
+                        style="
+                            background:white;
+                            padding:20px;
+                            border-radius:8px;
+                        "
+                    >
+
+                        <p>
+
+                            <b>
+                                Attack Type:
+                            </b>
+
+                            ${incident.attackType}
+
+                        </p>
+
+
+                        <p>
+
+                            <b>
+                                Severity:
+                            </b>
+
+                            ${incident.severity}
+
+                        </p>
+
+
+                        <p>
+
+                            <b>
+                                Source IP:
+                            </b>
+
+                            ${incident.sourceIP}
+
+                        </p>
+
+
+                        <p>
+
+                            <b>
+                                Confidence:
+                            </b>
+
+                            ${incident.detection.confidence}
+
+                        </p>
+
+
+                        <p>
+
+                            <b>
+                                Detection Latency:
+                            </b>
+
+                            ${incident.detection.latencyMs}
+                            ms
+
+                        </p>
+
+
+                        <hr>
+
+
+                        <p>
+
+                            DDoS Guard detected suspicious
+                            network activity and generated
+                            this security alert automatically.
+
+                        </p>
+
+
+                        <p>
+
+                            Login to the DDoS Guard dashboard
+                            to investigate the incident.
+
+                        </p>
+
+                    </div>
+
+                </div>
+
+                `
+
+            });
+
+
+        console.log(
+            `✅ Attack email sent to ${destination}`
+        );
+
+        console.log(
+            info.response
+        );
+
+
+        return true;
 
     }
 
-    const info = await transporter.sendMail({
+    catch (err) {
 
-        from: `"DDoS Guard" <${process.env.EMAIL_USER}>`,
+        console.error(
 
-        to: email,
+            "❌ Email sending failed:",
 
-        subject: `🚨 ${incident.severity.toUpperCase()} DDoS Attack Detected`,
+            err.message
 
-        html: `
+        );
 
-        <div style="font-family:Arial;padding:25px;background:#f5f7fb">
+        return false;
 
-            <div style="background:#081b2d;color:white;padding:18px;border-radius:8px">
-
-                <h2>🚨 DDoS Guard Security Alert</h2>
-
-            </div>
-
-            <div style="background:white;padding:20px">
-
-                <p><b>Attack Type:</b> ${incident.attackType}</p>
-
-                <p><b>Severity:</b> ${incident.severity}</p>
-
-                <p><b>Source IP:</b> ${incident.sourceIP}</p>
-
-                <p><b>Confidence:</b> ${incident.detection.confidence}</p>
-
-                <p><b>Latency:</b> ${incident.detection.latencyMs} ms</p>
-
-                <hr>
-
-                <p>
-
-                This attack was automatically detected by
-
-                <b>DDoS Guard</b>.
-
-                </p>
-
-            </div>
-
-        </div>
-
-        `
-
-    });
-
-    console.log("✅ Alert Email Sent");
-
-    console.log(info.response);
+    }
 
 }
+
 
 // =====================================================
 // SEND TEST EMAIL
 // =====================================================
 
-async function sendTestAlert(email) {
+async function sendTestAlert(
+    email
+) {
 
     if (!email) {
 
-        throw new Error("Email address not provided");
+        throw new Error(
+            "Email address is required."
+        );
 
     }
 
-    const info = await transporter.sendMail({
 
-        from: `"DDoS Guard" <${process.env.EMAIL_USER}>`,
+    const info =
+        await transporter.sendMail({
 
-        to: email,
+            from:
+                `"DDoS Guard" <${process.env.EMAIL_USER}>`,
 
-        subject: "🧪 DDoS Guard Test Alert",
+            to:
+                email,
 
-        html: `
+            subject:
+                "🧪 DDoS Guard Test Email",
 
-        <div style="font-family:Arial;padding:25px">
+            html: `
 
-            <h2>🧪 Test Alert</h2>
+            <div
+                style="
+                    font-family:Arial;
+                    padding:20px;
+                "
+            >
 
-            <p>
+                <h2>
+                    Test Successful ✅
+                </h2>
 
-            Congratulations!
 
-            </p>
+                <p>
 
-            <p>
+                    Your DDoS Guard email
+                    notifications are configured
+                    correctly.
 
-            Your email notification settings are working correctly.
+                </p>
 
-            </p>
 
-            <hr>
+                <p>
 
-            <p>
+                    Time:
 
-            Time :
+                    ${new Date().toLocaleString()}
 
-            ${new Date().toLocaleString()}
+                </p>
 
-            </p>
+            </div>
 
-        </div>
+            `
 
-        `
+        });
 
-    });
 
-    console.log("✅ Test Email Sent");
+    console.log(
+        "✅ Test email sent"
+    );
 
-    console.log(info.response);
+    console.log(
+        info.response
+    );
+
+
+    return true;
 
 }
+
+
+// =====================================================
+// EXPORT
+// =====================================================
 
 module.exports = {
 

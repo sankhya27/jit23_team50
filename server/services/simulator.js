@@ -1,8 +1,5 @@
 const mongoose = require("mongoose");
 
-const AlertPreference =
-    require("../models/AlertPreference");
-
 const {
     getPrediction
 } = require("./mlService");
@@ -20,6 +17,7 @@ const {
     sendAttackAlert
 } = require("../utils/mailService");
 
+
 // ======================================================
 // Helpers
 // ======================================================
@@ -32,11 +30,13 @@ function rand(min, max) {
 
 }
 
+
 function randomIP() {
 
     return `192.168.${rand(1, 255)}.${rand(1, 254)}`;
 
 }
+
 
 function isMongoConnected() {
 
@@ -45,6 +45,7 @@ function isMongoConnected() {
     );
 
 }
+
 
 // ======================================================
 // Traffic Profiles
@@ -85,6 +86,7 @@ const profiles = {
 
     }),
 
+
     syn: () => ({
 
         packet_rate:
@@ -116,6 +118,7 @@ const profiles = {
 
     }),
 
+
     udp: () => ({
 
         packet_rate:
@@ -140,6 +143,7 @@ const profiles = {
             rand(700, 2500)
 
     }),
+
 
     http: () => ({
 
@@ -168,6 +172,7 @@ const profiles = {
 
 };
 
+
 // ======================================================
 // Simulator State
 // ======================================================
@@ -184,6 +189,7 @@ let _tickInProgress = false;
 
 const TICK_INTERVAL_MS = 500;
 
+
 // ======================================================
 // Session State
 // ======================================================
@@ -198,6 +204,7 @@ let attackChain = 0;
 
 let emailCooldown = false;
 
+
 // ======================================================
 // Smooth Graph State
 // ======================================================
@@ -205,6 +212,7 @@ let emailCooldown = false;
 let currentAttackTraffic = 0;
 
 let currentNormalTraffic = 4000;
+
 
 // ======================================================
 // Session Generator
@@ -226,6 +234,7 @@ function chooseAttackType() {
 
     }
 
+
     const attacks = [
 
         "syn",
@@ -236,6 +245,7 @@ function chooseAttackType() {
 
     ];
 
+
     return attacks[
         rand(
             0,
@@ -244,6 +254,7 @@ function chooseAttackType() {
     ];
 
 }
+
 
 function generateNextSession() {
 
@@ -254,6 +265,7 @@ function generateNextSession() {
         return;
 
     }
+
 
     // ==================================================
     // NORMAL
@@ -267,8 +279,10 @@ function generateNextSession() {
 
             attackChain++;
 
+
             const attackRoll =
                 Math.random();
+
 
             if (attackRoll < 0.25) {
 
@@ -291,6 +305,7 @@ function generateNextSession() {
 
             }
 
+
             currentAttack =
                 chooseAttackType();
 
@@ -306,6 +321,7 @@ function generateNextSession() {
         }
 
     }
+
 
     // ==================================================
     // ATTACK
@@ -350,6 +366,7 @@ function generateNextSession() {
 
 }
 
+
 // ======================================================
 // SSE
 // ======================================================
@@ -360,6 +377,7 @@ function isRunning() {
 
 }
 
+
 function addSSEClient(res) {
 
     if (!_sseClients.includes(res)) {
@@ -367,6 +385,7 @@ function addSSEClient(res) {
         _sseClients.push(res);
 
     }
+
 
     try {
 
@@ -396,6 +415,7 @@ function addSSEClient(res) {
 
 }
 
+
 function removeSSEClient(res) {
 
     _sseClients =
@@ -408,10 +428,12 @@ function removeSSEClient(res) {
 
 }
 
+
 function broadcast(data) {
 
     const payload =
         `data: ${JSON.stringify(data)}\n\n`;
+
 
     _sseClients =
         _sseClients.filter(
@@ -432,9 +454,11 @@ function broadcast(data) {
 
                     }
 
+
                     client.write(
                         payload
                     );
+
 
                     return true;
 
@@ -452,11 +476,13 @@ function broadcast(data) {
 
 }
 
+
 // ======================================================
 // SSE HEARTBEAT
 // ======================================================
 
 const SSE_HEARTBEAT_MS = 15000;
+
 
 const heartbeatHandle =
     setInterval(
@@ -482,9 +508,11 @@ const heartbeatHandle =
 
                             }
 
+
                             client.write(
                                 ": heartbeat\n\n"
                             );
+
 
                             return true;
 
@@ -506,6 +534,7 @@ const heartbeatHandle =
 
     );
 
+
 if (
 
     heartbeatHandle &&
@@ -518,6 +547,7 @@ if (
     heartbeatHandle.unref();
 
 }
+
 
 // ======================================================
 // Smooth Live Traffic
@@ -541,8 +571,10 @@ function generateLiveTraffic(isAttack) {
 
         }
 
+
         currentAttackTraffic +=
             rand(-120, 120);
+
 
         if (
             currentAttackTraffic > 4800
@@ -553,6 +585,7 @@ function generateLiveTraffic(isAttack) {
 
         }
 
+
         if (
             currentAttackTraffic < 900
         ) {
@@ -561,11 +594,13 @@ function generateLiveTraffic(isAttack) {
 
         }
 
+
         currentNormalTraffic -=
             rand(20, 80);
 
         currentNormalTraffic +=
             rand(-100, 100);
+
 
         if (
             currentNormalTraffic < 450
@@ -574,6 +609,7 @@ function generateLiveTraffic(isAttack) {
             currentNormalTraffic = 450;
 
         }
+
 
         if (
             currentNormalTraffic > 1500
@@ -593,6 +629,7 @@ function generateLiveTraffic(isAttack) {
         currentAttackTraffic +=
             rand(-90, 90);
 
+
         if (
             currentAttackTraffic < 0
         ) {
@@ -601,11 +638,13 @@ function generateLiveTraffic(isAttack) {
 
         }
 
+
         currentNormalTraffic +=
             rand(40, 130);
 
         currentNormalTraffic +=
             rand(-140, 140);
+
 
         if (
             currentNormalTraffic < 3400
@@ -614,6 +653,7 @@ function generateLiveTraffic(isAttack) {
             currentNormalTraffic = 3400;
 
         }
+
 
         if (
             currentNormalTraffic > 5000
@@ -624,6 +664,7 @@ function generateLiveTraffic(isAttack) {
         }
 
     }
+
 
     return {
 
@@ -640,6 +681,7 @@ function generateLiveTraffic(isAttack) {
     };
 
 }
+
 
 // ======================================================
 // Save Detection History
@@ -671,6 +713,7 @@ async function saveDetectionHistory({
 
     }
 
+
     return await DetectionHistory.createEntry({
 
         sourceIP,
@@ -692,6 +735,7 @@ async function saveDetectionHistory({
     });
 
 }
+
 
 // ======================================================
 // Save Incident
@@ -726,6 +770,7 @@ async function saveIncident({
         );
 
     }
+
 
     return await Incident.createIncident({
 
@@ -792,17 +837,9 @@ async function saveIncident({
 
         mitigation: {
 
-            actionsTaken: [
+            actionsTaken: [],
 
-                `Blocked ${sourceIP}`,
-
-                "Rate limiting",
-
-                "Firewall updated"
-
-            ],
-
-            ipBlocked: true,
+            ipBlocked: false,
 
             effectivenessPct: 99.2
 
@@ -821,17 +858,25 @@ async function saveIncident({
         source:
             "simulator",
 
-        resolved: false,
+        status:
+            "Detected",
 
-        resolvedAt: null,
+        resolved:
+            false,
 
-        resolvedBy: null
+        resolvedAt:
+            null,
+
+        resolvedBy:
+            null
 
     });
 
 }
+
+
 // ======================================================
-// Main Tick
+// MAIN TICK
 // ======================================================
 
 async function runTick(username) {
@@ -842,15 +887,19 @@ async function runTick(username) {
 
     }
 
+
     generateNextSession();
+
 
     const selectedType =
         currentSession === "normal"
             ? "normal"
             : currentAttack;
 
+
     const profileGenerator =
         profiles[selectedType];
+
 
     if (!profileGenerator) {
 
@@ -860,11 +909,14 @@ async function runTick(username) {
 
     }
 
+
     const trafficData =
         profileGenerator();
 
+
     const sourceIP =
         randomIP();
+
 
     // ==================================================
     // ML PREDICTION
@@ -872,20 +924,10 @@ async function runTick(username) {
 
     let result = null;
 
-    /*
-     * IMPORTANT:
-     *
-     * AbortController is used here instead of
-     * Promise.race().
-     *
-     * Promise.race() only stops waiting for a request.
-     * It does NOT actually cancel the Axios request.
-     *
-     * AbortController cancels the actual ML request.
-     */
 
     const controller =
         new AbortController();
+
 
     const mlTimeout =
         setTimeout(() => {
@@ -893,6 +935,7 @@ async function runTick(username) {
             controller.abort();
 
         }, 1500);
+
 
     try {
 
@@ -911,7 +954,8 @@ async function runTick(username) {
 
         result = {
 
-            ok: false,
+            ok:
+                false,
 
             error:
                 err.message ||
@@ -929,16 +973,13 @@ async function runTick(username) {
 
     }
 
-    // --------------------------------------------------
-    // Simulation may have been stopped while ML
-    // request was running.
-    // --------------------------------------------------
 
     if (!_running) {
 
         return;
 
     }
+
 
     // ==================================================
     // PREDICTION VALUES
@@ -951,6 +992,7 @@ async function runTick(username) {
     let detection_methods = null;
 
     let detection_latency_ms = 15;
+
 
     if (
 
@@ -977,6 +1019,7 @@ async function runTick(username) {
 
     }
 
+
     // ==================================================
     // SIMULATOR GROUND TRUTH
     // ==================================================
@@ -984,11 +1027,6 @@ async function runTick(username) {
     const groundTruthIsAttack =
         currentSession !== "normal";
 
-    /*
-     * If ML service doesn't return a valid
-     * boolean prediction, use simulator ground
-     * truth as a safe fallback.
-     */
 
     if (
         typeof is_attack !== "boolean"
@@ -998,6 +1036,7 @@ async function runTick(username) {
             groundTruthIsAttack;
 
     }
+
 
     if (
         typeof confidence !== "number"
@@ -1011,6 +1050,7 @@ async function runTick(username) {
                 : rand(2, 10) / 100;
 
     }
+
 
     // ==================================================
     // ATTACK LABEL
@@ -1034,10 +1074,12 @@ async function runTick(username) {
 
         "Generic DDoS";
 
+
     const latency =
         Number(
             detection_latency_ms
         ) || 0;
+
 
     // ==================================================
     // LIVE GRAPH
@@ -1048,10 +1090,6 @@ async function runTick(username) {
             is_attack
         );
 
-    /*
-     * Keep the graph behaviour that was already
-     * working correctly.
-     */
 
     if (is_attack) {
 
@@ -1071,6 +1109,7 @@ async function runTick(username) {
             rand(3500, 5000);
 
     }
+
 
     // ==================================================
     // LIVE METRICS
@@ -1100,18 +1139,13 @@ async function runTick(username) {
 
     });
 
-    // ==================================================
-    // MONGODB — DETECTION HISTORY
-    // ==================================================
 
-    /*
-     * DetectionHistory and Incident are independent.
-     *
-     * If DetectionHistory fails, an attack can still
-     * create an Incident.
-     */
+    // ==================================================
+    // DETECTION HISTORY
+    // ==================================================
 
     let historyEntry = null;
+
 
     try {
 
@@ -1142,6 +1176,7 @@ async function runTick(username) {
 
             });
 
+
         console.log(
             `✅ Detection history saved: ${historyEntry._id}`
         );
@@ -1151,9 +1186,13 @@ async function runTick(username) {
     catch (err) {
 
         console.error(
+
             "❌ Detection history save failed:",
+
             err.message
+
         );
+
 
         broadcast({
 
@@ -1169,6 +1208,7 @@ async function runTick(username) {
         });
 
     }
+
 
     // ==================================================
     // NORMAL TRAFFIC
@@ -1204,9 +1244,11 @@ async function runTick(username) {
 
         });
 
+
         return;
 
     }
+
 
     // ==================================================
     // ATTACK
@@ -1219,11 +1261,13 @@ async function runTick(username) {
 
             : "high";
 
+
     // ==================================================
     // CREATE INCIDENT
     // ==================================================
 
     let incident = null;
+
 
     try {
 
@@ -1253,6 +1297,7 @@ async function runTick(username) {
 
             });
 
+
         console.log(
             `✅ Incident saved: ${incident._id}`
         );
@@ -1262,9 +1307,13 @@ async function runTick(username) {
     catch (err) {
 
         console.error(
+
             "❌ Incident save failed:",
+
             err.message
+
         );
+
 
         broadcast({
 
@@ -1279,10 +1328,6 @@ async function runTick(username) {
 
         });
 
-        /*
-         * Since the Incident was not saved,
-         * don't increment incident counters.
-         */
 
         broadcast({
 
@@ -1312,31 +1357,22 @@ async function runTick(username) {
 
         });
 
+
         return;
 
     }
 
+
     // ==================================================
-    // UPDATE LIVE INCIDENT COUNTERS
+    // UPDATE INCIDENT COUNTERS
     // ==================================================
 
     metrics.incrementIncident();
 
-    /*
-     * IMPORTANT:
-     *
-     * The newly-created MongoDB incident is
-     * unresolved.
-     *
-     * Therefore we DO NOT call:
-     *
-     * metrics.incrementResolved()
-     *
-     * here.
-     *
-     * This keeps the live dashboard consistent
-     * with the Incident document.
-     */
+
+    // ==================================================
+    // LOG ATTACK
+    // ==================================================
 
     console.log("");
 
@@ -1380,17 +1416,10 @@ async function runTick(username) {
 
     console.log("");
 
+
     // ==================================================
     // EMAIL ALERT
     // ==================================================
-
-    /*
-     * Email sending should not be allowed to
-     * interfere with the simulator's main tick.
-     *
-     * We start it separately after the incident
-     * has already been persisted and broadcast.
-     */
 
     if (
 
@@ -1408,18 +1437,13 @@ async function runTick(username) {
 
         emailCooldown = true;
 
+
         setTimeout(() => {
 
             emailCooldown = false;
 
         }, 30000);
 
-        /*
-         * Run email processing separately.
-         *
-         * This prevents a slow email provider from
-         * delaying the simulation loop.
-         */
 
         sendEmailAlertSafely({
 
@@ -1438,6 +1462,7 @@ async function runTick(username) {
         });
 
     }
+
 
     // ==================================================
     // BROADCAST ATTACK
@@ -1475,6 +1500,7 @@ async function runTick(username) {
 
 }
 
+
 // ======================================================
 // SAFE EMAIL ALERT
 // ======================================================
@@ -1505,73 +1531,85 @@ async function sendEmailAlertSafely({
 
         ) {
 
-            return;
-
-        }
-
-        const preference =
-            await AlertPreference.findOne({
-
-                username
-
-            });
-
-        if (
-
-            !preference ||
-
-            !preference.enabled ||
-
-            !preference.email
-
-        ) {
+            console.log(
+                "⚠ No user associated with simulation. Email skipped."
+            );
 
             return;
 
         }
 
-        await sendAttackAlert(
 
-            preference.email,
+        // --------------------------------------------------
+        // IMPORTANT
+        //
+        // mailService reads the CURRENT User document
+        // from MongoDB.
+        //
+        // Therefore toggling email notifications while
+        // simulation is running takes effect immediately.
+        // --------------------------------------------------
 
-            {
+        const sent =
+            await sendAttackAlert(
 
-                attackType:
-                    attackLabel,
+                username,
 
-                severity,
+                {
 
-                sourceIP,
+                    attackType:
+                        attackLabel,
 
-                detection: {
+                    severity,
 
-                    confidence,
+                    sourceIP,
 
-                    latencyMs:
-                        latency
+                    detection: {
+
+                        confidence,
+
+                        latencyMs:
+                            latency
+
+                    }
 
                 }
 
-            }
+            );
 
-        );
 
-        console.log(
-            `📧 Attack alert sent to ${preference.email}`
-        );
+        if (sent) {
+
+            console.log(
+                `📧 Attack alert processed for ${username}`
+            );
+
+        }
+
+        else {
+
+            console.log(
+                `📭 Attack email not sent for ${username}`
+            );
+
+        }
 
     }
 
     catch (err) {
 
-        console.log(
-            "Email alert error:",
+        console.error(
+
+            "❌ Email alert error:",
+
             err.message
+
         );
 
     }
 
 }
+
 
 // ======================================================
 // START
@@ -1591,15 +1629,15 @@ function startSimulation(
 
     }
 
-    // ==================================================
-    // DATABASE CHECK
-    // ==================================================
 
     if (!isMongoConnected()) {
 
         console.error(
+
             "❌ Cannot start simulation: MongoDB is not connected."
+
         );
+
 
         broadcast({
 
@@ -1611,13 +1649,11 @@ function startSimulation(
 
         });
 
+
         return false;
 
     }
 
-    // ==================================================
-    // CLEAR OLD INTERVAL
-    // ==================================================
 
     if (_intervalHandle) {
 
@@ -1629,22 +1665,15 @@ function startSimulation(
 
     }
 
-    // ==================================================
-    // INITIALIZE STATE
-    // ==================================================
 
     _running = true;
 
     _attackType =
         attackType || "random";
 
-    /*
-     * Reset only live in-memory metrics.
-     *
-     * MongoDB records remain untouched.
-     */
 
     metrics.reset();
+
 
     currentAttackTraffic = 0;
 
@@ -1662,9 +1691,6 @@ function startSimulation(
 
     _tickInProgress = false;
 
-    // ==================================================
-    // BROADCAST START
-    // ==================================================
 
     broadcast({
 
@@ -1679,15 +1705,9 @@ function startSimulation(
 
     });
 
-    // ==================================================
-    // FIRST TICK
-    // ==================================================
 
     runSingleTick(username);
 
-    // ==================================================
-    // CONTINUE SIMULATION
-    // ==================================================
 
     _intervalHandle =
         setInterval(
@@ -1703,6 +1723,7 @@ function startSimulation(
             TICK_INTERVAL_MS
 
         );
+
 
     console.log("");
 
@@ -1729,14 +1750,21 @@ function startSimulation(
     );
 
     console.log(
+        "Email preference : Live MongoDB check"
+    );
+
+    console.log(
         "===================================="
     );
 
     console.log("");
 
+
     return true;
 
 }
+
+
 // ======================================================
 // SAFE TICK
 // ======================================================
@@ -1749,9 +1777,6 @@ async function runSingleTick(username) {
 
     }
 
-    // --------------------------------------------------
-    // Prevent overlapping ticks
-    // --------------------------------------------------
 
     if (_tickInProgress) {
 
@@ -1759,7 +1784,9 @@ async function runSingleTick(username) {
 
     }
 
+
     _tickInProgress = true;
+
 
     try {
 
@@ -1775,6 +1802,7 @@ async function runSingleTick(username) {
             "Simulation tick error:",
             err
         );
+
 
         broadcast({
 
@@ -1799,6 +1827,7 @@ async function runSingleTick(username) {
 
 }
 
+
 // ======================================================
 // STOP
 // ======================================================
@@ -1811,15 +1840,9 @@ function stopSimulation() {
 
     }
 
-    // --------------------------------------------------
-    // Stop simulation first
-    // --------------------------------------------------
 
     _running = false;
 
-    // --------------------------------------------------
-    // Clear interval
-    // --------------------------------------------------
 
     if (_intervalHandle) {
 
@@ -1831,9 +1854,6 @@ function stopSimulation() {
 
     }
 
-    // --------------------------------------------------
-    // Reset temporary session state
-    // --------------------------------------------------
 
     currentAttackTraffic = 0;
 
@@ -1851,24 +1871,6 @@ function stopSimulation() {
 
     _tickInProgress = false;
 
-    /*
-     * IMPORTANT:
-     *
-     * We intentionally DO NOT call:
-     *
-     * metrics.reset()
-     *
-     * here.
-     *
-     * The dashboard can still display the final
-     * live values after the simulation stops.
-     *
-     * MongoDB data is also untouched.
-     */
-
-    // --------------------------------------------------
-    // Broadcast stop
-    // --------------------------------------------------
 
     broadcast({
 
@@ -1880,9 +1882,6 @@ function stopSimulation() {
 
     });
 
-    // --------------------------------------------------
-    // Logging
-    // --------------------------------------------------
 
     console.log("");
 
@@ -1904,9 +1903,11 @@ function stopSimulation() {
 
     console.log("");
 
+
     return true;
 
 }
+
 
 // ======================================================
 // EXPORTS

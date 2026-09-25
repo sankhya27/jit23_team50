@@ -60,25 +60,22 @@ export function drawIncidentsPage(doc, incidents = []) {
 
     //------------------------------------------------------------
 
-    const rows = incidents.map((incident) => [
+    const rows = incidents.map((incident) => {
+        const confidence = incident.detection?.confidence ?? incident.confidence ?? 0;
+        const confidencePct = confidence <= 1
+            ? Math.round(confidence * 100)
+            : Math.round(confidence);
 
-        new Date(
+        return [
             incident.createdAt
-        ).toLocaleString(),
-
-        incident.attackType,
-
-        incident.severity.toUpperCase(),
-
-        `${Math.round(
-
-            (incident.detection?.confidence || 0) * 100
-
-        )}%`,
-
-        incident.sourceIP
-
-    ]);
+                ? new Date(incident.createdAt).toLocaleString()
+                : "N/A",
+            incident.attackType || "Unknown",
+            String(incident.severity || "unknown").toUpperCase(),
+            `${confidencePct}%`,
+            incident.sourceIP || incident.source_ip || "unknown"
+        ];
+    });
 
     //------------------------------------------------------------
 

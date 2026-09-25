@@ -4,50 +4,87 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 
-const { signToken, verifyToken } = require("../middleware/auth");
-const { validate } = require("../middleware/validate");
+const {
+    signToken,
+    verifyToken
+} = require("../middleware/auth");
 
-const logAudit = require("../utils/auditLogger");
+const {
+    validate
+} = require("../middleware/validate");
 
-// -----------------------------------------------------
-// In-memory fallback
-// -----------------------------------------------------
+const logAudit =
+    require("../utils/auditLogger");
+
+
+
+// =====================================================
+// IN-MEMORY FALLBACK
+// =====================================================
 
 const _memUsers = [];
 
-// -----------------------------------------------------
-// Helpers
-// -----------------------------------------------------
+
+// =====================================================
+// HELPERS
+// =====================================================
 
 function mongoAvailable() {
+
     return mongoose.connection.readyState === 1;
+
 }
+
 
 async function findUserByUsername(username) {
+
     if (mongoAvailable()) {
-        const User = require("../models/User");
-        return User.findOne({ username });
+
+        const User =
+            require("../models/User");
+
+        return User.findOne({
+            username
+        });
+
     }
 
-    return _memUsers.find(
-        u => u.username === username
-    ) || null;
+    return (
+        _memUsers.find(
+            u =>
+                u.username === username
+        ) || null
+    );
+
 }
+
 
 async function findUserByEmail(email) {
+
     if (mongoAvailable()) {
-        const User = require("../models/User");
-        return User.findOne({ email });
+
+        const User =
+            require("../models/User");
+
+        return User.findOne({
+            email
+        });
+
     }
 
-    return _memUsers.find(
-        u => u.email === email
-    ) || null;
+    return (
+        _memUsers.find(
+            u =>
+                u.email === email
+        ) || null
+    );
+
 }
 
-// -----------------------------------------------------
+
+// =====================================================
 // SIGNUP
-// -----------------------------------------------------
+// =====================================================
 
 router.post(
     "/signup",
@@ -64,64 +101,109 @@ router.post(
                 adminKey
             } = req.body;
 
-            if (await findUserByUsername(username)) {
+
+            // -------------------------------------------------
+            // USERNAME CHECK
+            // -------------------------------------------------
+
+            if (
+                await findUserByUsername(
+                    username
+                )
+            ) {
 
                 return res.status(409).json({
 
-                    error: "Username already taken."
+                    error:
+                        "Username already taken."
 
                 });
 
             }
 
-            if (await findUserByEmail(email)) {
+
+            // -------------------------------------------------
+            // EMAIL CHECK
+            // -------------------------------------------------
+
+            if (
+                await findUserByEmail(
+                    email
+                )
+            ) {
 
                 return res.status(409).json({
 
-                    error: "Email already registered."
+                    error:
+                        "Email already registered."
 
                 });
 
             }
 
-            let finalRole = "analyst";
+
+            // -------------------------------------------------
+            // ROLE
+            // -------------------------------------------------
+
+            let finalRole =
+                "analyst";
+
 
             if (role === "admin") {
 
                 if (
                     !adminKey ||
-                    adminKey !== process.env.ADMIN_SECRET_KEY
+                    adminKey !==
+                        process.env.ADMIN_SECRET_KEY
                 ) {
 
                     return res.status(403).json({
 
-                        error: "Invalid Admin Secret Key."
+                        error:
+                            "Invalid Admin Secret Key."
 
                     });
 
                 }
 
-                finalRole = "admin";
+                finalRole =
+                    "admin";
 
             }
 
+
+            // -------------------------------------------------
+            // CREATE USER
+            // -------------------------------------------------
+
             let user;
+
 
             if (mongoAvailable()) {
 
-                const User = require("../models/User");
+                const User =
+                    require("../models/User");
 
-                user = new User({
 
-                    username,
+                user =
+                    new User({
 
-                    email,
+                        username,
 
-                    passwordHash: password,
+                        email,
 
-                    role: finalRole
+                        passwordHash:
+                            password,
 
-                });
+                        role:
+                            finalRole,
+
+                        emailNotifications:
+                            true
+
+                    });
+
 
                 await user.save();
 
@@ -129,17 +211,17 @@ router.post(
 
             else {
 
-                const passwordHash = await bcrypt.hash(
+                const passwordHash =
+                    await bcrypt.hash(
+                        password,
+                        12
+                    );
 
-                    password,
-
-                    12
-
-                );
 
                 user = {
 
-                    _id: Date.now().toString(),
+                    _id:
+                        Date.now().toString(),
 
                     username,
 
@@ -147,55 +229,96 @@ router.post(
 
                     passwordHash,
 
-                    role: finalRole
+                    role:
+                        finalRole,
+
+                    emailNotifications:
+                        true
 
                 };
 
-                _memUsers.push(user);
+
+                _memUsers.push(
+                    user
+                );
 
             }
 
+
+            // -------------------------------------------------
+            // AUDIT
+            // -------------------------------------------------
+
             await logAudit({
 
-                username: user.username,
+                username:
+                    user.username,
 
-                role: user.role,
+                role:
+                    user.role,
 
-                action: "User Signup",
+                action:
+                    "User Signup",
 
-                description: `New ${user.role} account created`,
+                description:
+                    `New ${user.role} account created`,
 
-                ipAddress: req.ip,
+                ipAddress:
+                    req.ip,
 
-                status: "Success"
-
-            });
-
-            const token = signToken({
-
-                id: user._id,
-
-                username: user.username,
-
-                role: user.role
+                status:
+                    "Success"
 
             });
+
+
+            // -------------------------------------------------
+            // TOKEN
+            // -------------------------------------------------
+
+            const token =
+                signToken({
+
+                    id:
+                        user._id,
+
+                    username:
+                        user.username,
+
+                    role:
+                        user.role
+
+                });
+
+
+            // -------------------------------------------------
+            // RESPONSE
+            // -------------------------------------------------
 
             res.status(201).json({
 
-                status: "success",
+                status:
+                    "success",
 
                 token,
 
                 user: {
 
-                    id: user._id,
+                    id:
+                        user._id,
 
-                    username: user.username,
+                    username:
+                        user.username,
 
-                    email: user.email,
+                    email:
+                        user.email,
 
-                    role: user.role
+                    role:
+                        user.role,
+
+                    emailNotifications:
+                        user.emailNotifications ??
+                        true
 
                 }
 
@@ -210,12 +333,12 @@ router.post(
         }
 
     }
-
 );
 
-// -----------------------------------------------------
+
+// =====================================================
 // LOGIN
-// -----------------------------------------------------
+// =====================================================
 
 router.post(
     "/login",
@@ -225,14 +348,16 @@ router.post(
         try {
 
             const {
-
                 username,
-
                 password
-
             } = req.body;
 
-            const user = await findUserByUsername(username);
+
+            const user =
+                await findUserByUsername(
+                    username
+                );
+
 
             if (!user) {
 
@@ -240,33 +365,40 @@ router.post(
 
                     username,
 
-                    role: "Unknown",
+                    role:
+                        "Unknown",
 
-                    action: "Login Failed",
+                    action:
+                        "Login Failed",
 
-                    description: "Username not found",
+                    description:
+                        "Username not found",
 
-                    ipAddress: req.ip,
+                    ipAddress:
+                        req.ip,
 
-                    status: "Failed"
+                    status:
+                        "Failed"
 
                 });
 
+
                 return res.status(401).json({
 
-                    error: "Invalid username or password."
+                    error:
+                        "Invalid username or password."
 
                 });
 
             }
 
-            const match = await bcrypt.compare(
 
-                password,
+            const match =
+                await bcrypt.compare(
+                    password,
+                    user.passwordHash
+                );
 
-                user.passwordHash
-
-            );
 
             if (!match) {
 
@@ -274,67 +406,96 @@ router.post(
 
                     username,
 
-                    role: user.role,
+                    role:
+                        user.role,
 
-                    action: "Login Failed",
+                    action:
+                        "Login Failed",
 
-                    description: "Incorrect password",
+                    description:
+                        "Incorrect password",
 
-                    ipAddress: req.ip,
+                    ipAddress:
+                        req.ip,
 
-                    status: "Failed"
+                    status:
+                        "Failed"
 
                 });
 
+
                 return res.status(401).json({
 
-                    error: "Invalid username or password."
+                    error:
+                        "Invalid username or password."
 
                 });
 
             }
 
+
             await logAudit({
 
-                username: user.username,
+                username:
+                    user.username,
 
-                role: user.role,
+                role:
+                    user.role,
 
-                action: "User Login",
+                action:
+                    "User Login",
 
-                description: "Logged into DDoS Guard",
+                description:
+                    "Logged into DDoS Guard",
 
-                ipAddress: req.ip,
+                ipAddress:
+                    req.ip,
 
-                status: "Success"
-
-            });
-
-            const token = signToken({
-
-                id: user._id,
-
-                username: user.username,
-
-                role: user.role
+                status:
+                    "Success"
 
             });
+
+
+            const token =
+                signToken({
+
+                    id:
+                        user._id,
+
+                    username:
+                        user.username,
+
+                    role:
+                        user.role
+
+                });
+
 
             res.json({
 
-                status: "success",
+                status:
+                    "success",
 
                 token,
 
                 user: {
 
-                    id: user._id,
+                    id:
+                        user._id,
 
-                    username: user.username,
+                    username:
+                        user.username,
 
-                    email: user.email,
+                    email:
+                        user.email,
 
-                    role: user.role
+                    role:
+                        user.role,
+
+                    emailNotifications:
+                        user.emailNotifications ??
+                        true
 
                 }
 
@@ -349,12 +510,12 @@ router.post(
         }
 
     }
-
 );
 
-// -----------------------------------------------------
+
+// =====================================================
 // CURRENT USER
-// -----------------------------------------------------
+// =====================================================
 
 router.get(
     "/me",
@@ -363,29 +524,226 @@ router.get(
 
         try {
 
-            const user = await findUserByUsername(
-                req.user.username
-            );
+            const user =
+                await findUserByUsername(
+                    req.user.username
+                );
+
 
             if (!user) {
 
                 return res.status(404).json({
 
-                    error: "User not found."
+                    error:
+                        "User not found."
 
                 });
 
             }
 
+
             res.json({
 
-                id: user._id,
+    id: user._id,
 
-                username: user.username,
+    username: user.username,
 
-                email: user.email,
+    email: user.email,
 
-                role: user.role
+    alertEmail: user.alertEmail || "",
+
+    role: user.role,
+
+    emailNotifications:
+        user.emailNotifications ?? true
+
+});
+
+        }
+
+        catch (err) {
+
+            next(err);
+
+        }
+
+    }
+);
+
+
+// =====================================================
+// UPDATE NOTIFICATION PREFERENCES
+// =====================================================
+
+router.put(
+    "/preferences",
+    verifyToken,
+    async (req, res, next) => {
+
+        try {
+
+            const {
+                emailAlerts
+            } = req.body;
+
+
+            // -------------------------------------------------
+            // Validate input
+            // -------------------------------------------------
+
+            if (
+                typeof emailAlerts !==
+                "boolean"
+            ) {
+
+                return res.status(400).json({
+
+                    error:
+                        "emailAlerts must be a boolean."
+
+                });
+
+            }
+
+
+            // -------------------------------------------------
+            // MongoDB
+            // -------------------------------------------------
+
+            if (mongoAvailable()) {
+
+                const User =
+                    require("../models/User");
+
+
+                const user =
+                    await User.findOneAndUpdate(
+
+                        {
+                            username:
+                                req.user.username
+                        },
+
+                        {
+                            $set: {
+
+                                emailNotifications:
+                                    emailAlerts
+
+                            }
+
+                        },
+
+                        {
+                            new: true,
+
+                            runValidators:
+                                true
+
+                        }
+
+                    );
+
+
+                if (!user) {
+
+                    return res.status(404).json({
+
+                        error:
+                            "User not found."
+
+                    });
+
+                }
+
+
+                // -------------------------------------------------
+                // AUDIT
+                // -------------------------------------------------
+
+                await logAudit({
+
+                    username:
+                        user.username,
+
+                    role:
+                        user.role,
+
+                    action:
+                        "Email Notification Preference Changed",
+
+                    description:
+                        emailAlerts
+                            ? "Email notifications enabled"
+                            : "Email notifications disabled",
+
+                    ipAddress:
+                        req.ip,
+
+                    status:
+                        "Success"
+
+                }).catch(() => {});
+
+
+                return res.json({
+
+                    success:
+                        true,
+
+                    emailAlerts:
+                        user.emailNotifications,
+
+                    message:
+                        emailAlerts
+                            ? "Email notifications enabled."
+                            : "Email notifications disabled."
+
+                });
+
+            }
+
+
+            // -------------------------------------------------
+            // MEMORY FALLBACK
+            // -------------------------------------------------
+
+            const user =
+                _memUsers.find(
+                    u =>
+                        u.username ===
+                        req.user.username
+                );
+
+
+            if (!user) {
+
+                return res.status(404).json({
+
+                    error:
+                        "User not found."
+
+                });
+
+            }
+
+
+            user.emailNotifications =
+                emailAlerts;
+
+
+            res.json({
+
+                success:
+                    true,
+
+                emailAlerts:
+                    user.emailNotifications,
+
+                message:
+                    emailAlerts
+                        ? "Email notifications enabled."
+                        : "Email notifications disabled."
 
             });
 
@@ -398,12 +756,136 @@ router.get(
         }
 
     }
+);
+// -----------------------------------------------------
+// UPDATE ATTACK ALERT EMAIL
+// -----------------------------------------------------
 
+router.put(
+    "/alert-email",
+    verifyToken,
+    async (req, res, next) => {
+
+        try {
+
+            const { alertEmail } = req.body;
+
+            if (
+                typeof alertEmail !== "string" ||
+                !alertEmail.trim()
+            ) {
+
+                return res.status(400).json({
+
+                    error:
+                        "Alert email address is required."
+
+                });
+
+            }
+
+            const normalizedEmail =
+                alertEmail.trim().toLowerCase();
+
+            const emailRegex =
+                /^\S+@\S+\.\S+$/;
+
+            if (!emailRegex.test(normalizedEmail)) {
+
+                return res.status(400).json({
+
+                    error:
+                        "Please enter a valid email address."
+
+                });
+
+            }
+
+            const user =
+                await findUserByUsername(
+                    req.user.username
+                );
+
+            if (!user) {
+
+                return res.status(404).json({
+
+                    error:
+                        "User not found."
+
+                });
+
+            }
+
+            if (mongoAvailable()) {
+
+                const User =
+                    require("../models/User");
+
+                await User.findByIdAndUpdate(
+                    user._id,
+                    {
+                        alertEmail:
+                            normalizedEmail
+                    }
+                );
+
+            } else {
+
+                user.alertEmail =
+                    normalizedEmail;
+
+            }
+
+            await logAudit({
+
+                username:
+                    req.user.username,
+
+                role:
+                    req.user.role,
+
+                action:
+                    "Alert Email Updated",
+
+                description:
+                    `Attack alert email changed to ${normalizedEmail}`,
+
+                ipAddress:
+                    req.ip,
+
+                status:
+                    "Success"
+
+            }).catch(() => {});
+
+            res.json({
+
+                success: true,
+
+                alertEmail:
+                    normalizedEmail,
+
+                message:
+                    "Attack alert email updated successfully."
+
+            });
+
+        }
+
+        catch (err) {
+
+            next(err);
+
+        }
+
+    }
 );
 
-// -----------------------------------------------------
+
+// =====================================================
 // CHANGE PASSWORD
-// -----------------------------------------------------
+// =====================================================
 
 router.post(
     "/change-password",
@@ -412,57 +894,156 @@ router.post(
 
         try {
 
-            const { currentPassword, newPassword } = req.body;
+            const {
+                currentPassword,
+                newPassword
+            } = req.body;
 
-            if (!currentPassword || !newPassword) {
+
+            if (
+                !currentPassword ||
+                !newPassword
+            ) {
+
                 return res.status(400).json({
-                    error: "currentPassword and newPassword are required."
+
+                    error:
+                        "currentPassword and newPassword are required."
+
                 });
+
             }
 
-            if (newPassword.length < 6) {
+
+            if (
+                newPassword.length < 6
+            ) {
+
                 return res.status(400).json({
-                    error: "New password must be at least 6 characters."
+
+                    error:
+                        "New password must be at least 6 characters."
+
                 });
+
             }
 
-            const user = await findUserByUsername(req.user.username);
+
+            const user =
+                await findUserByUsername(
+                    req.user.username
+                );
+
 
             if (!user) {
-                return res.status(404).json({ error: "User not found." });
+
+                return res.status(404).json({
+
+                    error:
+                        "User not found."
+
+                });
+
             }
 
-            const match = await bcrypt.compare(currentPassword, user.passwordHash);
+
+            const match =
+                await bcrypt.compare(
+                    currentPassword,
+                    user.passwordHash
+                );
+
 
             if (!match) {
-                return res.status(401).json({ error: "Current password is incorrect." });
+
+                return res.status(401).json({
+
+                    error:
+                        "Current password is incorrect."
+
+                });
+
             }
 
-            const newHash = await bcrypt.hash(newPassword, 12);
+
+            const newHash =
+                await bcrypt.hash(
+                    newPassword,
+                    12
+                );
+
 
             if (mongoAvailable()) {
-                const User = require("../models/User");
-                await User.findByIdAndUpdate(user._id, { passwordHash: newHash });
-            } else {
-                user.passwordHash = newHash;
+
+                const User =
+                    require("../models/User");
+
+
+                await User.findByIdAndUpdate(
+
+                    user._id,
+
+                    {
+                        passwordHash:
+                            newHash
+                    }
+
+                );
+
             }
 
+            else {
+
+                user.passwordHash =
+                    newHash;
+
+            }
+
+
             await logAudit({
-                username: req.user.username,
-                role: req.user.role,
-                action: "Password Changed",
-                description: "User changed their password",
-                ipAddress: req.ip,
-                status: "Success"
+
+                username:
+                    req.user.username,
+
+                role:
+                    req.user.role,
+
+                action:
+                    "Password Changed",
+
+                description:
+                    "User changed their password",
+
+                ipAddress:
+                    req.ip,
+
+                status:
+                    "Success"
+
             }).catch(() => {});
 
-            res.json({ success: true, message: "Password updated successfully." });
 
-        } catch (err) {
+            res.json({
+
+                success:
+                    true,
+
+                message:
+                    "Password updated successfully."
+
+            });
+
+        }
+
+        catch (err) {
+
             next(err);
+
         }
 
     }
 );
 
-module.exports = router;
+
+module.exports =
+    router;

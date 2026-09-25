@@ -50,8 +50,16 @@ export default function SystemHealth({
 
             const data = await res.json();
 
-            setHealth(data);
-            onHealthChange && onHealthChange(data);
+            const displayHealth = {
+                api: data.api || "Unknown",
+                mongodb: data.mongodb || "Unknown",
+                ml: data.ml || "Unknown",
+                email: data.email || "Unknown",
+                simulation: data.simulation || "Unknown"
+            };
+
+            setHealth(displayHealth);
+            onHealthChange && onHealthChange(displayHealth);
 
         }
 
@@ -109,7 +117,7 @@ export default function SystemHealth({
                         key={key}
                     >
 
-                        <div>
+                        <div className="health-label">
 
                             {key.toUpperCase()}
 
@@ -119,7 +127,7 @@ export default function SystemHealth({
                             className={`health-dot ${dot(value)}`}
                         />
 
-                        <strong>
+                        <strong className="health-value">
 
                             {value}
 

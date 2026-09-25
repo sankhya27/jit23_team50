@@ -8,7 +8,6 @@ import DetectionGauge from "../components/live/DetectionGauge";
 import TopAttackers from "../components/live/TopAttackers";
 import SystemHealth from "../components/live/SystemHealth";
 import IncidentTimeline from "../components/live/IncidentTimeline";
-import AttackOrigins from "../components/live/AttackOrigins";
 import ExportReportButton from "../components/live/ExportReportButton";
 
 import "../styles/liveMonitoring.css";
@@ -24,7 +23,8 @@ export default function LiveMonitoring() {
         normal_traffic: 0,
         packets_blocked: 0,
         avg_latency_ms: 0,
-        effectiveness_pct: 100,
+            effectiveness_pct: null,
+            mitigation_effectiveness_pct: null,
         live_attack: 0,
         live_normal: 0
 
@@ -52,7 +52,13 @@ export default function LiveMonitoring() {
 
             if (data.metrics) {
 
-                setMetrics(data.metrics);
+                setMetrics(previous => ({
+                    ...previous,
+                    ...data.metrics,
+                    mitigation_effectiveness_pct:
+                        data.metrics.mitigation_effectiveness_pct ??
+                        previous.mitigation_effectiveness_pct
+                }));
 
                 if (
                     data.metrics.attacks_detected >
@@ -112,6 +118,47 @@ export default function LiveMonitoring() {
 
     }, []);
 
+    useEffect(() => {
+
+        async function loadCurrentMetrics() {
+
+            try {
+
+                const response = await fetch(
+                    "http://localhost:5001/api/metrics",
+                    { cache: "no-store" }
+                );
+
+                if (!response.ok) return;
+
+                const data = await response.json();
+
+                setMetrics(previous => ({
+                    ...previous,
+                    ...data,
+                    mitigation_effectiveness_pct:
+                        data.mitigation_effectiveness_pct ??
+                        previous.mitigation_effectiveness_pct
+                }));
+
+            }
+
+            catch (error) {
+
+                console.error("Live metrics refresh failed:", error);
+
+            }
+
+        }
+
+        loadCurrentMetrics();
+
+        const timer = setInterval(loadCurrentMetrics, 3000);
+
+        return () => clearInterval(timer);
+
+    }, []);
+
     // ------------------------------
     // Threat Level
     // ------------------------------
@@ -152,25 +199,10 @@ export default function LiveMonitoring() {
 
                         </p>
 
-                        <p
-                            style={{
-                                marginTop: "8px",
-                                fontSize: "13px",
-                                color: "#7e93ab"
-                            }}
-                        >
+                        <p className="live-status-line">
 
                             Status :
-                            <span
-                                style={{
-                                    color:
-                                        status === "Connected"
-                                            ? "#22c55e"
-                                            : "#ef4444",
-                                    marginLeft: "8px",
-                                    fontWeight: 600
-                                }}
-                            >
+                            <span className={`live-status ${status === "Connected" ? "online" : "offline"}`}>
                                 {status}
                             </span>
 
@@ -178,14 +210,7 @@ export default function LiveMonitoring() {
 
                     </div>
 
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "20px",
-                            flexWrap: "wrap"
-                        }}
-                    >
+                    <div className="live-header-actions">
 
                         <ExportReportButton
                             metrics={metrics}
@@ -204,7 +229,7 @@ export default function LiveMonitoring() {
                 <div className="bottom-grid">
 
                     <DetectionGauge
-                        value={metrics.effectiveness_pct}
+                        value={metrics.mitigation_effectiveness_pct}
                     />
 
                     <SystemHealth
@@ -213,13 +238,9 @@ export default function LiveMonitoring() {
 
                 </div>
 
-                <div className="bottom-grid">
+                <div className="bottom-grid single-panel">
 
                     <TopAttackers />
-
-                    <AttackOrigins
-                        attacks={metrics.attacks_detected}
-                    />
 
                 </div>
 

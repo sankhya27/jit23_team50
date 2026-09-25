@@ -58,6 +58,26 @@ router.get(
                     filter
                 );
 
+            const [
+                totalPackets,
+                allowed,
+                blocked
+            ] = await Promise.all([
+
+                DetectionHistory.countDocuments(filter),
+
+                DetectionHistory.countDocuments({
+                    ...filter,
+                    decision: "Allowed"
+                }),
+
+                DetectionHistory.countDocuments({
+                    ...filter,
+                    decision: "Blocked"
+                })
+
+            ]);
+
             await logAudit({
 
                 username,
@@ -83,7 +103,13 @@ router.get(
                 success: true,
 
                 totalRecords:
-                    history.length,
+                    totalPackets,
+
+                totalPackets,
+
+                allowed,
+
+                blocked,
 
                 history
 

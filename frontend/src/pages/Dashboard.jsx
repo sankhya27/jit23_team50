@@ -59,7 +59,9 @@ const Dashboard = () => {
 
         avg_latency_ms: 0,
 
-        effectiveness_pct: 100,
+        effectiveness_pct: null,
+
+        mitigation_effectiveness_pct: null,
 
         uptime_seconds: 0,
 
@@ -898,16 +900,15 @@ const Dashboard = () => {
 
                     <KPICard
 
-                        title="Detection Accuracy"
+                        title="Mitigation Effectiveness"
 
-                        subtitle="ML Model Accuracy"
+                        subtitle="Blocked / processed traffic"
 
                         value={
 
-                            `${
-                                metrics.effectiveness_pct ??
-                                100
-                            }%`
+                            metrics.mitigation_effectiveness_pct == null
+                                ? "N/A"
+                                : `${metrics.mitigation_effectiveness_pct}%`
 
                         }
 

@@ -6,6 +6,7 @@ const { getPrediction } = require('../services/mlService');
 const metrics = require('../services/metrics');
 const Incident = require('../models/Incident');
 const { generateInsight } = require('../services/insights');
+const { sendAttackAlert } = require('../utils/mailService');
 
 // Fallback session mitigation map (IP -> Set of timestamps)
 const sessionRateLimits = new Map();
@@ -73,8 +74,8 @@ router.post('/', validate('predict'), async (req, res, next) => {
     });
 
     const preventive_measures = is_attack ? [
-      "Suspicious source traffic blocked",
-      "Rate limiting applied to high-volume requests",
+      "Suspicious source traffic recorded",
+      "Review source traffic for mitigation",
       "Network administrator alerted",
       "Incident logged for security review",
     ] : [];
@@ -92,7 +93,7 @@ router.post('/', validate('predict'), async (req, res, next) => {
         } catch(e) {}
       }
 
-      await Incident.createIncident({
+      const incident = await Incident.createIncident({
         username,
         attackType: 'Generic DDoS',
         severity: confidence > 0.8 ? 'high' : 'medium',
@@ -110,8 +111,28 @@ router.post('/', validate('predict'), async (req, res, next) => {
           confidence,
           latencyMs: detection_latency_ms,
         },
-        mitigation: { actionsTaken: preventive_measures, ipBlocked: true },
+        mitigation: { actionsTaken: [], ipBlocked: false },
+
+        status: 'Detected',
         source: 'manual'
+      });
+
+      await sendAttackAlert(username, {
+
+        attackType: attackType,
+
+        severity: incident.severity,
+
+        sourceIP: ipAddress,
+
+        detection: {
+
+          confidence,
+
+          latencyMs: detection_latency_ms
+
+        }
+
       });
     }
 
@@ -125,7 +146,7 @@ router.post('/', validate('predict'), async (req, res, next) => {
       detection_methods,
       detection_latency_ms,
       preventive_measures,
-      mitigation_status: is_attack ? 'Preventive actions completed' : 'No mitigation needed',
+      mitigation_status: is_attack ? 'Incident detected and awaiting mitigation' : 'No mitigation needed',
       insight,
     });
     

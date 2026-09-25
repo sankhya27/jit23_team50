@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MainLayout from "../components/layout/MainLayout";
 import { useAuth } from "../context/AuthContext";
 import "../styles/incidents.css";
@@ -32,8 +32,14 @@ export default function Incidents() {
     const [selectedIncident, setSelectedIncident] =
         useState(null);
 
+    const detailsRef =
+        useRef(null);
+
     const [actionLoading, setActionLoading] =
         useState(null);
+
+    const [exporting, setExporting] =
+        useState(false);
 
     const rowsPerPage = 8;
 
@@ -42,7 +48,9 @@ export default function Incidents() {
     // ======================================================
 
     async function loadIncidents(
-        showLoading = false
+        showLoading = false,
+        limit = 500,
+        merge = false
     ) {
 
         try {
@@ -72,7 +80,7 @@ export default function Incidents() {
 
             const response =
                 await fetch(
-                    `${API}/incidents`,
+                    `${API}/incidents?limit=${limit}`,
                     {
 
                         method: "GET",
@@ -123,9 +131,12 @@ export default function Incidents() {
                 Array.isArray(data.incidents)
             ) {
 
-                setIncidents(
-                    data.incidents
+                setIncidents(previous => merge
+                    ? mergeIncidents(previous, data.incidents)
+                    : data.incidents
                 );
+
+                return data.incidents;
 
             }
 
@@ -134,13 +145,20 @@ export default function Incidents() {
             ) {
 
                 // Compatibility with older backend response
-                setIncidents(data);
+                setIncidents(previous => merge
+                    ? mergeIncidents(previous, data)
+                    : data
+                );
+
+                return data;
 
             }
 
             else {
 
                 setIncidents([]);
+
+                return [];
 
             }
 
@@ -168,18 +186,34 @@ export default function Incidents() {
 
     }
 
+    function mergeIncidents(previous, incoming) {
+
+        const byId = new Map(
+            previous.map(item => [item._id, item])
+        );
+
+        incoming.forEach(item => {
+
+            byId.set(item._id, item);
+
+        });
+
+        return [...byId.values()];
+
+    }
+
     // ======================================================
     // INITIAL LOAD + AUTO REFRESH
     // ======================================================
 
     useEffect(() => {
 
-        loadIncidents(true);
+        loadIncidents(true, 0);
 
         const timer =
             setInterval(() => {
 
-                loadIncidents(false);
+                loadIncidents(false, 500, true);
 
             }, 5000);
 
@@ -191,9 +225,97 @@ export default function Incidents() {
 
     }, []);
 
+    useEffect(() => {
+
+        if (selectedIncident && detailsRef.current) {
+
+            detailsRef.current.focus({
+                preventScroll: true
+            });
+
+        }
+
+    }, [selectedIncident]);
+
     // ======================================================
     // RESOLVE INCIDENT
     // ======================================================
+
+    async function blockIncident(id) {
+
+        if (!id) {
+
+            return;
+
+        }
+
+        try {
+
+            setActionLoading(id);
+
+            setError("");
+
+            const response =
+                await fetch(
+                    `${API}/incidents/${id}/block`,
+                    {
+
+                        method: "PATCH",
+
+                        headers: {
+
+                            Authorization:
+                                `Bearer ${localStorage.getItem("token")}`
+
+                        }
+
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.error ||
+                    "Unable to block incident."
+                );
+
+            }
+
+            setIncidents(previous =>
+                previous.map(incident =>
+                    incident._id === id
+                        ? data.incident
+                        : incident
+                )
+            );
+
+            if (selectedIncident?._id === id) {
+
+                setSelectedIncident(data.incident);
+
+            }
+
+        }
+
+        catch (err) {
+
+            setError(
+                err.message ||
+                "Unable to block incident."
+            );
+
+        }
+
+        finally {
+
+            setActionLoading(null);
+
+        }
+
+    }
 
     async function resolveIncident(id) {
 
@@ -404,11 +526,10 @@ export default function Incidents() {
     // FILTER + SORT
     // ======================================================
 
-    const filtered =
-        useMemo(() => {
+    function getFilteredIncidents(source) {
 
             let data =
-                [...incidents];
+                [...source];
 
             // --------------------------------------------------
             // SEARCH
@@ -456,8 +577,10 @@ export default function Incidents() {
                 data =
                     data.filter(
                         item =>
-                            item.severity ===
-                            severity
+                            String(item.severity || "")
+                                .trim()
+                                .toLowerCase() ===
+                            severity.toLowerCase()
                     );
 
             }
@@ -474,38 +597,9 @@ export default function Incidents() {
                     data.filter(
                         item => {
 
-                            let currentStatus;
-
-                            if (
-                                item.resolved
-                            ) {
-
-                                currentStatus =
-                                    "Resolved";
-
-                            }
-
-                            else if (
-                                item.mitigation
-                                    ?.ipBlocked
-                            ) {
-
-                                currentStatus =
-                                    "Blocked";
-
-                            }
-
-                            else {
-
-                                currentStatus =
-                                    "Detected";
-
-                            }
-
-                            return (
-                                currentStatus ===
-                                status
-                            );
+                            return getStatus(item)
+                                .toLowerCase() ===
+                                status.toLowerCase();
 
                         }
                     );
@@ -543,6 +637,13 @@ export default function Incidents() {
             );
 
             return data;
+
+    }
+
+    const filtered =
+        useMemo(() => {
+
+            return getFilteredIncidents(incidents);
 
         }, [
 
@@ -616,15 +717,25 @@ export default function Incidents() {
     // EXPORT CSV
     // ======================================================
 
-    function exportCSV() {
+    async function exportCSV() {
 
-        if (
-            filtered.length === 0
-        ) {
+        setExporting(true);
+
+        const latestIncidents =
+            await loadIncidents(false, 0);
+
+        const exportIncidents =
+            getFilteredIncidents(
+                latestIncidents || []
+            );
+
+        if (exportIncidents.length === 0) {
 
             alert(
                 "There are no incidents to export."
             );
+
+            setExporting(false);
 
             return;
 
@@ -650,36 +761,8 @@ export default function Incidents() {
 
         ];
 
-        filtered.forEach(
+        exportIncidents.forEach(
             item => {
-
-                let currentStatus;
-
-                if (
-                    item.resolved
-                ) {
-
-                    currentStatus =
-                        "Resolved";
-
-                }
-
-                else if (
-                    item.mitigation
-                        ?.ipBlocked
-                ) {
-
-                    currentStatus =
-                        "Blocked";
-
-                }
-
-                else {
-
-                    currentStatus =
-                        "Detected";
-
-                }
 
                 rows.push([
 
@@ -702,7 +785,7 @@ export default function Incidents() {
 
                     ) + "%",
 
-                    currentStatus,
+                    getStatus(item),
 
                     item.createdAt
                         ? new Date(
@@ -777,6 +860,8 @@ export default function Incidents() {
             url
         );
 
+        setExporting(false);
+
     }
 
     // ======================================================
@@ -817,6 +902,16 @@ export default function Incidents() {
     ) {
 
         if (
+            incident.status === "Resolved" ||
+            incident.status === "Blocked" ||
+            incident.status === "Detected"
+        ) {
+
+            return incident.status;
+
+        }
+
+        if (
             incident.resolved
         ) {
 
@@ -825,8 +920,7 @@ export default function Incidents() {
         }
 
         if (
-            incident.mitigation
-                ?.ipBlocked
+            incident.mitigation?.ipBlocked === true
         ) {
 
             return "Blocked";
@@ -869,9 +963,10 @@ export default function Incidents() {
                     <button
                         className="export-btn"
                         onClick={exportCSV}
+                        disabled={exporting}
                     >
 
-                        Export CSV
+                        {exporting ? "Refreshing..." : "Export CSV"}
 
                     </button>
 
@@ -1217,6 +1312,21 @@ export default function Incidents() {
 
                                                 {user?.role ===
                                                     "admin" &&
+                                                    !item.resolved &&
+                                                    getStatus(item) === "Detected" && (
+
+                                                        <button
+                                                            className="block-btn"
+                                                            disabled={actionLoading === item._id}
+                                                            onClick={() => blockIncident(item._id)}
+                                                        >
+                                                            {actionLoading === item._id ? "Blocking..." : "Block"}
+                                                        </button>
+
+                                                    )}
+
+                                                {user?.role ===
+                                                    "admin" &&
 
                                                     !item.resolved && (
 
@@ -1390,13 +1500,53 @@ export default function Incidents() {
                             className={
                                 "incident-modal"
                             }
+
+                            ref={detailsRef}
+
+                            tabIndex="-1"
+
+                            role="dialog"
+
+                            aria-modal="true"
                         >
 
-                            <h2>
-                                Incident Details
-                            </h2>
+                            <div className="incident-modal-header">
 
-                            <p>
+                                <div>
+
+                                    <span className="modal-eyebrow">
+                                        Security event
+                                    </span>
+
+                                    <h2>
+                                        Incident Details
+                                    </h2>
+
+                                </div>
+
+                                <button
+                                    className="modal-close-btn"
+                                    onClick={() => setSelectedIncident(null)}
+                                    aria-label="Close incident details"
+                                >
+                                    x
+                                </button>
+
+                            </div>
+
+                            <div className="incident-modal-summary">
+
+                                <span className="modal-attack-type">
+                                    {selectedIncident.attackType || "Unknown"}
+                                </span>
+
+                                <span className={`severity ${selectedIncident.severity || "medium"}`}>
+                                    {selectedIncident.severity || "medium"}
+                                </span>
+
+                            </div>
+
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Attack:
@@ -1409,7 +1559,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Severity:
@@ -1422,7 +1572,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Source IP:
@@ -1435,7 +1585,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Status:
@@ -1449,7 +1599,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Confidence:
@@ -1464,7 +1614,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Latency:
@@ -1478,7 +1628,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     ML Score:
@@ -1492,7 +1642,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Heuristic Score:
@@ -1506,7 +1656,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Anomaly Score:
@@ -1520,7 +1670,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Ensemble Score:
@@ -1534,7 +1684,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Packet Rate:
@@ -1548,7 +1698,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Duration:
@@ -1562,7 +1712,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Byte Count:
@@ -1576,7 +1726,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Actions:
@@ -1602,7 +1752,7 @@ export default function Incidents() {
 
                             </p>
 
-                            <p>
+                            <p className="incident-detail-row">
 
                                 <strong>
                                     Created:
@@ -1639,10 +1789,7 @@ export default function Incidents() {
                             )}
 
                             <button
-
-                                className={
-                                    "close-btn"
-                                }
+                                className="close-btn"
 
                                 onClick={() =>
                                     setSelectedIncident(

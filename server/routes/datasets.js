@@ -6,6 +6,7 @@ const router = express.Router();
 const { verifyToken, requireRole } = require('../middleware/auth');
 const Incident = require('../models/Incident');
 const { generateInsight } = require('../services/insights');
+const { sendAttackAlert } = require('../utils/mailService');
 
 const uploadDir = path.join(__dirname, '..', 'uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -101,7 +102,7 @@ router.post('/upload', verifyToken, requireRole('admin'), upload.single('file'),
     };
     datasets.unshift(entry);
 
-    await Incident.createIncident({
+    const incident = await Incident.createIncident({
       username: req.user.username,
       attackType: analysis.attack_type,
       severity: analysis.is_ddos ? (analysis.confidence > 0.8 ? 'high' : 'medium') : 'low',
@@ -116,9 +117,26 @@ router.post('/upload', verifyToken, requireRole('admin'), upload.single('file'),
         ensembleScore: analysis.confidence,
       },
       mitigation: { actionsTaken: analysis.recommendations, ipBlocked: analysis.is_ddos },
+      status: analysis.is_ddos ? 'Blocked' : 'Detected',
       recommendations: analysis.recommendations,
       source: 'manual',
     });
+
+    if (analysis.is_ddos) {
+
+      await sendAttackAlert(req.user.username, {
+
+        attackType: incident.attackType,
+
+        severity: incident.severity,
+
+        sourceIP: incident.sourceIP,
+
+        detection: incident.detection
+
+      });
+
+    }
 
     res.json({
       status: 'success',

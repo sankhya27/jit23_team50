@@ -11,9 +11,55 @@ export default function ExportReportButton({
 
 }) {
 
-    function exportPDF() {
+    async function exportPDF() {
+
+        let currentMetrics = metrics;
+        let currentHealth = health;
+
+        try {
+
+            const token = localStorage.getItem("token");
+
+            const [metricsResponse, healthResponse] = await Promise.all([
+
+                fetch("http://localhost:5001/api/metrics", {
+                    cache: "no-store"
+                }),
+
+                fetch("http://localhost:5001/api/system-health", {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    },
+                    cache: "no-store"
+                })
+
+            ]);
+
+            if (metricsResponse.ok) {
+                currentMetrics = await metricsResponse.json();
+            }
+
+            if (healthResponse.ok) {
+                currentHealth = await healthResponse.json();
+            }
+
+        }
+
+        catch (error) {
+
+            console.error("Live report refresh failed:", error);
+
+        }
 
         const doc = new jsPDF();
+
+        const currentThreat = currentMetrics.live_attack >= 400
+            ? "CRITICAL"
+            : currentMetrics.live_attack >= 250
+                ? "HIGH"
+                : currentMetrics.live_attack >= 100
+                    ? "MEDIUM"
+                    : "LOW";
 
         doc.setFontSize(20);
 
@@ -39,17 +85,23 @@ export default function ExportReportButton({
 
             body:[
 
-                ["Packets Analysed",metrics.packets_sent],
+                ["Packets Analysed",currentMetrics.packets_sent ?? 0],
 
-                ["Attacks Detected",metrics.attacks_detected],
+                ["Attacks Detected",currentMetrics.attacks_detected ?? 0],
 
-                ["Packets Blocked",metrics.packets_blocked],
+                ["Packets Blocked",currentMetrics.packets_blocked ?? 0],
 
-                ["Average Latency",`${metrics.avg_latency_ms} ms`],
+                ["Average Latency",`${currentMetrics.avg_latency_ms ?? 0} ms`],
 
-                ["Detection Effectiveness",`${metrics.effectiveness_pct}%`],
+                ["Detection Accuracy",currentMetrics.effectiveness_pct == null
+                    ? "N/A - no labeled predictions"
+                    : `${currentMetrics.effectiveness_pct}%`],
 
-                ["Threat Level",threat]
+                ["Mitigation Rate",currentMetrics.mitigation_effectiveness_pct == null
+                    ? "N/A"
+                    : `${currentMetrics.mitigation_effectiveness_pct}%`],
+
+                ["Threat Level",currentThreat]
 
             ]
 
@@ -63,15 +115,15 @@ export default function ExportReportButton({
 
             body:[
 
-                ["API",health.api],
+                ["API",currentHealth.api ?? "Unknown"],
 
-                ["MongoDB",health.mongodb],
+                ["MongoDB",currentHealth.mongodb ?? "Unknown"],
 
-                ["ML Service",health.ml],
+                ["ML Service",currentHealth.ml ?? "Unknown"],
 
-                ["Email",health.email],
+                ["Email",currentHealth.email ?? "Unknown"],
 
-                ["Simulation",health.simulation]
+                ["Simulation",currentHealth.simulation ?? "Unknown"]
 
             ]
 

@@ -44,7 +44,9 @@ function getEmptyHistoricalAnalytics() {
 
         averageConfidence: 0,
 
-        averageEffectiveness: 100,
+        averageEffectiveness: null,
+
+        mitigationEffectiveness: null,
 
         mostCommonAttack: "None",
 
@@ -56,7 +58,6 @@ function getEmptyHistoricalAnalytics() {
             new Array(24).fill(0),
 
         weekly: [
-
             { day: "Sun", attacks: 0 },
             { day: "Mon", attacks: 0 },
             { day: "Tue", attacks: 0 },
@@ -71,8 +72,7 @@ function getEmptyHistoricalAnalytics() {
 
     };
 
-}
-
+    };
 // ======================================================
 // LIVE METRICS
 // ======================================================
@@ -103,7 +103,10 @@ function getLiveAnalytics() {
             liveMetrics.live_attack || 0,
 
         effectiveness:
-            liveMetrics.effectiveness_pct ?? 100,
+            liveMetrics.effectiveness_pct,
+
+        mitigationEffectiveness:
+            liveMetrics.mitigation_effectiveness_pct,
 
         latency:
             liveMetrics.avg_latency_ms || 0,
@@ -249,9 +252,19 @@ router.get(
                                         $cond: [
 
                                             {
-                                                $eq: [
-                                                    "$resolved",
-                                                    true
+                                                $or: [
+                                                    {
+                                                        $eq: [
+                                                            "$resolved",
+                                                            true
+                                                        ]
+                                                    },
+                                                    {
+                                                        $eq: [
+                                                            "$status",
+                                                            "Resolved"
+                                                        ]
+                                                    }
                                                 ]
                                             },
 
@@ -272,9 +285,19 @@ router.get(
                                         $cond: [
 
                                             {
-                                                $eq: [
-                                                    "$resolved",
-                                                    true
+                                                $or: [
+                                                    {
+                                                        $eq: [
+                                                            "$resolved",
+                                                            true
+                                                        ]
+                                                    },
+                                                    {
+                                                        $eq: [
+                                                            "$status",
+                                                            "Resolved"
+                                                        ]
+                                                    }
                                                 ]
                                             },
 
@@ -908,7 +931,7 @@ router.get(
                         detectionSummary.blockedCount
                     ) || 0;
 
-                const averageEffectiveness =
+                const mitigationEffectiveness =
                     totalDetections > 0
 
                         ? Number(
@@ -924,7 +947,7 @@ router.get(
 
                         )
 
-                        : 100;
+                        : null;
 
                 // ==================================================
                 // MOST COMMON ATTACK
@@ -961,7 +984,9 @@ router.get(
 
                     averageConfidence,
 
-                    averageEffectiveness,
+                    averageEffectiveness: null,
+
+                    mitigationEffectiveness,
 
                     mostCommonAttack,
 

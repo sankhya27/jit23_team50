@@ -308,7 +308,7 @@ class MetricsService {
         // If groundTruth is not supplied:
         //     don't count this event toward accuracy.
         //
-        // This prevents fake "95% accuracy".
+        // This prevents an unverified percentage from being displayed.
         // ==================================================
 
         if (
@@ -409,7 +409,7 @@ class MetricsService {
     // actual ground-truth labels have been supplied.
     //
     // The simulator currently does not provide groundTruth,
-    // so we return 100 rather than displaying a fake number.
+    // so this remains unavailable rather than becoming a fake number.
     // ======================================================
 
     get effectivenessPct() {
@@ -418,7 +418,7 @@ class MetricsService {
             this.totalPredictions === 0
         ) {
 
-            return 100;
+            return null;
 
         }
 
@@ -430,6 +430,20 @@ class MetricsService {
             ) /
             this.totalPredictions
 
+        );
+
+    }
+
+    get mitigationEffectivenessPct() {
+
+        if (this.packetsSent <= 0) {
+
+            return null;
+
+        }
+
+        return Number(
+            ((this.packetsBlocked / this.packetsSent) * 100).toFixed(1)
         );
 
     }
@@ -457,6 +471,9 @@ class MetricsService {
 
             packets_blocked:
                 this.packetsBlocked,
+
+            mitigation_effectiveness_pct:
+                this.mitigationEffectivenessPct,
 
             ips_blocked:
                 this.blockedIPs.size,

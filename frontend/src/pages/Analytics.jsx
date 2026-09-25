@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import MainLayout from "../components/layout/MainLayout";
-
 import {
     ResponsiveContainer,
     PieChart,
@@ -25,22 +23,46 @@ import {
     FaServer,
     FaChartLine,
     FaCheckCircle,
-    FaExclamationTriangle
+    FaExclamationTriangle,
+    FaSyncAlt
 } from "react-icons/fa";
 
+import MainLayout from "../components/layout/MainLayout";
 import "../styles/analytics.css";
 
 const API = "http://localhost:5001/api";
 
 const COLORS = [
-    "#2563eb",
+    "#2ea8ff",
     "#22c55e",
     "#f59e0b",
-    "#ef4444",
+    "#ff5b5b",
     "#8b5cf6",
     "#14b8a6",
     "#ec4899"
 ];
+
+const CHART_GRID = "rgba(255,255,255,0.08)";
+const CHART_AXIS = { fill: "#9db2cb", fontSize: 11 };
+const CHART_TOOLTIP = {
+    contentStyle: {
+        background: "#132238",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: "12px",
+        color: "#fff"
+    },
+    labelStyle: { color: "#dce6f3" },
+    itemStyle: { color: "#dce6f3" }
+};
+
+function EmptyChart({ title, hint }) {
+    return (
+        <div className="analytics-empty-chart">
+            <strong>{title}</strong>
+            <span>{hint}</span>
+        </div>
+    );
+}
 
 function authHeader() {
 
@@ -61,6 +83,8 @@ export default function Analytics() {
     const [analytics, setAnalytics] = useState(null);
 
     const [loading, setLoading] = useState(true);
+
+    const [refreshing, setRefreshing] = useState(false);
 
     const [error, setError] = useState(null);
 
@@ -97,7 +121,9 @@ export default function Analytics() {
 
         averageConfidence: 0,
 
-        averageEffectiveness: 100,
+        averageEffectiveness: null,
+
+        mitigationEffectiveness: null,
 
         mostCommonAttack: "None",
 
@@ -195,6 +221,8 @@ export default function Analytics() {
 
         refreshPending.current = false;
 
+        setRefreshing(true);
+
         // Cancel an older request if one exists.
 
         if (abortController.current) {
@@ -282,6 +310,8 @@ export default function Analytics() {
 
             setLoading(false);
 
+            setRefreshing(false);
+
             // If an SSE event arrived while the previous
             // request was running, refresh once more.
 
@@ -339,6 +369,11 @@ export default function Analytics() {
         // Initial background load.
 
         loadAnalytics();
+
+        const refreshInterval = setInterval(
+            loadAnalytics,
+            3000
+        );
 
         const source = new EventSource(
 
@@ -401,6 +436,8 @@ export default function Analytics() {
         return () => {
 
             source.close();
+
+            clearInterval(refreshInterval);
 
             if (refreshTimer.current) {
 
@@ -522,45 +559,40 @@ export default function Analytics() {
 
                     <div>
 
-                        <h1>
-
-                            Security Analytics Dashboard
-
-                        </h1>
+                        <h1>Security Analytics Dashboard</h1>
 
                         <p>
-
-                            Real-time insights into attack
-                            patterns, detection performance
-                            and system activity.
-
+                            Real-time insights into attack patterns,
+                            detection performance, and system activity.
                         </p>
+
+                    </div>
+
+                    <div className="analytics-header-actions">
+
+                        <div className="analytics-live-badge">
+                            <span className="analytics-live-dot" />
+                            Live monitoring
+                        </div>
+
+                        <button
+                            type="button"
+                            className="analytics-refresh-btn"
+                            onClick={loadAnalytics}
+                            disabled={refreshing}
+                        >
+                            <FaSyncAlt className={refreshing ? "spin" : ""} />
+                            {refreshing ? "Refreshing..." : "Refresh data"}
+                        </button>
 
                     </div>
 
                 </div>
 
-                {/* ======================================
-                    OPTIONAL ERROR MESSAGE
-                ====================================== */}
-
                 {error && (
-
-                    <div
-                        style={{
-                            padding: "10px 15px",
-                            marginBottom: "15px",
-                            borderRadius: "8px",
-                            background: "#fff7ed",
-                            color: "#c2410c",
-                            fontSize: "14px"
-                        }}
-                    >
-
+                    <div className="analytics-error" role="alert">
                         {error}
-
                     </div>
-
                 )}
 
                 {/* ======================================
@@ -603,7 +635,7 @@ export default function Analytics() {
 
                     </div>
 
-                    {/* DETECTION ACCURACY */}
+                    {/* MITIGATION EFFECTIVENESS */}
 
                     <div className="analytics-kpi">
 
@@ -617,19 +649,15 @@ export default function Analytics() {
 
                             <span>
 
-                                Detection Accuracy
+                                Mitigation Effectiveness
 
                             </span>
 
                             <h2>
 
-                                {
-
-                                    displayAnalytics.averageEffectiveness ??
-
-                                    100
-
-                                }%
+                                {displayAnalytics.mitigationEffectiveness == null
+                                    ? "N/A"
+                                    : `${displayAnalytics.mitigationEffectiveness}%`}
 
                             </h2>
 
@@ -707,148 +735,61 @@ export default function Analytics() {
 
                 <div className="analytics-grid">
 
-                    {/* ATTACK TYPES */}
+                    <h2 className="analytics-section-title">Attack Breakdown</h2>
 
-                    <div className="chart-card">
-
-                        <h3>
-
-                            Attack Types
-
-                        </h3>
-
-                        <ResponsiveContainer
-
-                            width="100%"
-
-                            height={320}
-
-                        >
-
-                            <BarChart
-
-                                data={attackData}
-
-                            >
-
-                                <CartesianGrid
-
-                                    strokeDasharray="3 3"
-
-                                />
-
-                                <XAxis
-
-                                    dataKey="name"
-
-                                />
-
-                                <YAxis />
-
-                                <Tooltip />
-
-                                <Bar
-
-                                    dataKey="value"
-
-                                    fill="#2563eb"
-
-                                    radius={[
-
-                                        8,
-
-                                        8,
-
-                                        0,
-
-                                        0
-
-                                    ]}
-
-                                />
-
-                            </BarChart>
-
-                        </ResponsiveContainer>
-
+                    <div className="analytics-chart-card">
+                        <h3>Attack Types</h3>
+                        {attackData.length === 0 ? (
+                            <EmptyChart
+                                title="No attack types yet"
+                                hint="Run the simulator or wait for incidents to populate this chart."
+                            />
+                        ) : (
+                            <div className="analytics-chart-body">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={attackData}>
+                                        <CartesianGrid stroke={CHART_GRID} strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" tick={CHART_AXIS} />
+                                        <YAxis tick={CHART_AXIS} />
+                                        <Tooltip {...CHART_TOOLTIP} />
+                                        <Bar dataKey="value" fill="#2ea8ff" radius={[8, 8, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </div>
 
-                    {/* SEVERITY */}
-
-                    <div className="chart-card">
-
-                        <h3>
-
-                            Severity Distribution
-
-                        </h3>
-
-                        <ResponsiveContainer
-
-                            width="100%"
-
-                            height={320}
-
-                        >
-
-                            <PieChart>
-
-                                <Pie
-
-                                    data={severityData}
-
-                                    dataKey="value"
-
-                                    nameKey="name"
-
-                                    outerRadius={110}
-
-                                    label
-
-                                >
-
-                                    {severityData.map(
-
-                                        (
-
-                                            item,
-
-                                            index
-
-                                        ) => (
-
-                                            <Cell
-
-                                                key={index}
-
-                                                fill={
-
-                                                    COLORS[
-
-                                                        index %
-
-                                                        COLORS.length
-
-                                                    ]
-
-                                                }
-
-                                            />
-
-                                        )
-
-                                    )}
-
-                                </Pie>
-
-                                <Legend />
-
-                                <Tooltip />
-
-                            </PieChart>
-
-                        </ResponsiveContainer>
-
+                    <div className="analytics-chart-card">
+                        <h3>Severity Distribution</h3>
+                        {severityData.length === 0 ? (
+                            <EmptyChart
+                                title="No severity data yet"
+                                hint="Severity metrics appear once incidents are recorded."
+                            />
+                        ) : (
+                            <div className="analytics-chart-body">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={severityData}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            outerRadius={105}
+                                            label
+                                        >
+                                            {severityData.map((item, index) => (
+                                                <Cell
+                                                    key={item.name}
+                                                    fill={COLORS[index % COLORS.length]}
+                                                />
+                                            ))}
+                                        </Pie>
+                                        <Legend />
+                                        <Tooltip {...CHART_TOOLTIP} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
                     </div>
 
                 </div>
@@ -859,124 +800,50 @@ export default function Analytics() {
 
                 <div className="analytics-grid">
 
-                    {/* HOURLY */}
+                    <h2 className="analytics-section-title">Trends Over Time</h2>
 
-                    <div className="chart-card">
-
-                        <h3>
-
-                            Hourly Attack Trend
-
-                        </h3>
-
-                        <ResponsiveContainer
-
-                            width="100%"
-
-                            height={320}
-
-                        >
-
-                            <LineChart
-
-                                data={hourlyData}
-
-                            >
-
-                                <CartesianGrid
-
-                                    strokeDasharray="3 3"
-
-                                />
-
-                                <XAxis
-
-                                    dataKey="hour"
-
-                                />
-
-                                <YAxis />
-
-                                <Tooltip />
-
-                                <Line
-
-                                    type="monotone"
-
-                                    dataKey="attacks"
-
-                                    stroke="#ef4444"
-
-                                    strokeWidth={3}
-
-                                    dot={false}
-
-                                />
-
-                            </LineChart>
-
-                        </ResponsiveContainer>
-
+                    <div className="analytics-chart-card">
+                        <h3>Hourly Attack Trend</h3>
+                        <div className="analytics-chart-body">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={hourlyData}>
+                                    <CartesianGrid stroke={CHART_GRID} strokeDasharray="3 3" />
+                                    <XAxis dataKey="hour" tick={CHART_AXIS} interval={3} />
+                                    <YAxis tick={CHART_AXIS} allowDecimals={false} />
+                                    <Tooltip {...CHART_TOOLTIP} />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="attacks"
+                                        stroke="#ff5b5b"
+                                        strokeWidth={3}
+                                        dot={false}
+                                        activeDot={{ r: 5 }}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
 
-                    {/* WEEKLY */}
-
-                    <div className="chart-card">
-
-                        <h3>
-
-                            Weekly Trend
-
-                        </h3>
-
-                        <ResponsiveContainer
-
-                            width="100%"
-
-                            height={320}
-
-                        >
-
-                            <LineChart
-
-                                data={weeklyData}
-
-                            >
-
-                                <CartesianGrid
-
-                                    strokeDasharray="3 3"
-
-                                />
-
-                                <XAxis
-
-                                    dataKey="day"
-
-                                />
-
-                                <YAxis />
-
-                                <Tooltip />
-
-                                <Line
-
-                                    type="monotone"
-
-                                    dataKey="attacks"
-
-                                    stroke="#22c55e"
-
-                                    strokeWidth={3}
-
-                                    dot
-
-                                />
-
-                            </LineChart>
-
-                        </ResponsiveContainer>
-
+                    <div className="analytics-chart-card">
+                        <h3>Weekly Trend</h3>
+                        <div className="analytics-chart-body">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={weeklyData}>
+                                    <CartesianGrid stroke={CHART_GRID} strokeDasharray="3 3" />
+                                    <XAxis dataKey="day" tick={CHART_AXIS} />
+                                    <YAxis tick={CHART_AXIS} allowDecimals={false} />
+                                    <Tooltip {...CHART_TOOLTIP} />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="attacks"
+                                        stroke="#2ecc71"
+                                        strokeWidth={3}
+                                        dot={{ r: 4, fill: "#2ecc71" }}
+                                        activeDot={{ r: 6 }}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
 
                 </div>
@@ -987,291 +854,66 @@ export default function Analytics() {
 
                 <div className="analytics-grid">
 
-                    {/* TOP ATTACKING IPS */}
+                    <h2 className="analytics-section-title">Threat Intelligence</h2>
 
-                    <div className="chart-card">
-
-                        <h3>
-
-                            Top Attacking IPs
-
-                        </h3>
-
-                        <table className="analytics-table">
-
-                            <thead>
-
-                                <tr>
-
-                                    <th>
-
-                                        Rank
-
-                                    </th>
-
-                                    <th>
-
-                                        IP Address
-
-                                    </th>
-
-                                    <th>
-
-                                        Attacks
-
-                                    </th>
-
-                                </tr>
-
-                            </thead>
-
-                            <tbody>
-
-                                {(
-
-                                    displayAnalytics.topAttackers ||
-
-                                    []
-
-                                ).length === 0
-
-                                    ?
-
-                                    (
-
-                                        <tr>
-
-                                            <td
-
-                                                colSpan="3"
-
-                                                style={{
-
-                                                    textAlign:
-
-                                                        "center",
-
-                                                    padding:
-
-                                                        "30px"
-
-                                                }}
-
-                                            >
-
-                                                No attacker data
-                                                available
-
-                                            </td>
-
+                    <div className="analytics-chart-card">
+                        <h3>Top Attacking IPs</h3>
+                        <div className="analytics-table-wrap">
+                            <table className="analytics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>IP Address</th>
+                                        <th>Attacks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(displayAnalytics.topAttackers || []).length === 0 ? (
+                                        <tr className="analytics-table-empty">
+                                            <td colSpan="3">No attacker data available yet</td>
                                         </tr>
-
-                                    )
-
-                                    :
-
-                                    (
-
-                                        displayAnalytics.topAttackers ||
-
-                                        []
-
-                                    ).map(
-
-                                        (
-
-                                            attacker,
-
-                                            index
-
-                                        ) => (
-
-                                            <tr
-
-                                                key={index}
-
-                                            >
-
-                                                <td>
-
-                                                    {index + 1}
-
-                                                </td>
-
-                                                <td>
-
-                                                    {
-
-                                                        attacker.ip
-
-                                                    }
-
-                                                </td>
-
-                                                <td>
-
-                                                    {
-
-                                                        attacker.attacks
-
-                                                    }
-
-                                                </td>
-
+                                    ) : (
+                                        (displayAnalytics.topAttackers || []).map((attacker, index) => (
+                                            <tr key={`${attacker.ip}-${index}`}>
+                                                <td className="rank-cell">{index + 1}</td>
+                                                <td className="ip-cell">{attacker.ip}</td>
+                                                <td className="count-cell">{attacker.attacks}</td>
                                             </tr>
-
-                                        )
-
+                                        ))
                                     )}
-
-                            </tbody>
-
-                        </table>
-
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
-                    {/* SECURITY SUMMARY */}
-
-                    <div className="chart-card">
-
-                        <h3>
-
-                            Security Summary
-
-                        </h3>
-
+                    <div className="analytics-chart-card">
+                        <h3>Security Summary</h3>
                         <div className="summary-grid">
-
-                            {/* RESOLVED */}
-
                             <div className="summary-box">
-
-                                <FaCheckCircle
-
-                                    color="#22c55e"
-
-                                    size={28}
-
-                                />
-
-                                <span>
-
-                                    Resolved
-
-                                </span>
-
-                                <h2>
-
-                                    {
-
-                                        displayAnalytics.resolved ||
-
-                                        0
-
-                                    }
-
-                                </h2>
-
+                                <FaCheckCircle color="#22c55e" size={26} />
+                                <span>Resolved</span>
+                                <h2>{displayAnalytics.resolved ?? 0}</h2>
                             </div>
-
-                            {/* ACTIVE */}
-
                             <div className="summary-box">
-
-                                <FaExclamationTriangle
-
-                                    color="#ef4444"
-
-                                    size={28}
-
-                                />
-
-                                <span>
-
-                                    Active
-
-                                </span>
-
-                                <h2>
-
-                                    {
-
-                                        displayAnalytics.unresolved ||
-
-                                        0
-
-                                    }
-
-                                </h2>
-
+                                <FaExclamationTriangle color="#ff5b5b" size={26} />
+                                <span>Active</span>
+                                <h2>{displayAnalytics.unresolved ?? 0}</h2>
                             </div>
-
-                            {/* CONFIDENCE */}
-
                             <div className="summary-box">
-
-                                <FaChartLine
-
-                                    color="#2563eb"
-
-                                    size={28}
-
-                                />
-
-                                <span>
-
-                                    Avg Confidence
-
-                                </span>
-
+                                <FaChartLine color="#2ea8ff" size={26} />
+                                <span>Avg Confidence</span>
                                 <h2>
-
-                                    {
-
-                                        displayAnalytics.averageConfidence ||
-
-                                        0
-
-                                    }%
-
+                                    {displayAnalytics.averageConfidence == null
+                                        ? "N/A"
+                                        : `${displayAnalytics.averageConfidence}%`}
                                 </h2>
-
                             </div>
-
-                            {/* MOST COMMON ATTACK */}
-
-                            <div className="summary-box">
-
-                                <FaBug
-
-                                    color="#8b5cf6"
-
-                                    size={28}
-
-                                />
-
-                                <span>
-
-                                    Most Common Attack
-
-                                </span>
-
-                                <h2>
-
-                                    {
-
-                                        displayAnalytics.mostCommonAttack ||
-
-                                        "None"
-
-                                    }
-
-                                </h2>
-
+                            <div className="summary-box wide">
+                                <FaBug color="#8b5cf6" size={26} />
+                                <span>Most Common Attack</span>
+                                <h2>{displayAnalytics.mostCommonAttack || "None"}</h2>
                             </div>
-
                         </div>
-
                     </div>
 
                 </div>

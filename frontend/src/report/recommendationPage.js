@@ -8,8 +8,28 @@ import {
     drawSectionTitle,
     drawWatermark
 } from "./pdfHelpers";
+import { formatPercent } from "./normalizeAnalytics";
 
 export function drawRecommendationPage(doc, analytics = {}) {
+
+    const unresolved =
+        Number(analytics.unresolved) ||
+        0;
+
+    const critical =
+        Number(analytics.severity?.critical) ||
+        0;
+
+    const threatLevel =
+        critical > 0
+            ? "Critical"
+            : unresolved > 0
+                ? "Elevated"
+                : "No unresolved incidents";
+
+    const recommendations = unresolved > 0
+        ? "Review unresolved incidents and their mitigation actions.\n\nInvestigate repeated malicious source IP addresses.\n\nReview mitigation effectiveness after every attack."
+        : "No unresolved incidents were returned by the report data.\n\nContinue monitoring incoming traffic and review new incidents as they arrive.";
 
     doc.addPage();
 
@@ -57,11 +77,15 @@ export function drawRecommendationPage(doc, analytics = {}) {
 
         "Overall System Health",
 
-        `System Status : Secure
+        `Incident Status : ${unresolved} unresolved
 
-ML Detection Engine : Active
+    Critical Incidents : ${critical}
 
-Detection Effectiveness : ${analytics.averageEffectiveness || 0}%
+Detection Effectiveness : ${formatPercent(
+        analytics.averageEffectiveness ??
+        analytics.mitigationEffectiveness ??
+        analytics.averageConfidence
+    )}
 
 Average Detection Latency : ${analytics.averageLatency || 0} ms`
 
@@ -85,13 +109,13 @@ Average Detection Latency : ${analytics.averageLatency || 0} ms`
 
         "Risk Assessment",
 
-        `Current Threat Level : Moderate
+        `Current Threat Level : ${threatLevel}
 
-Network Monitoring : Active
+    Total Incidents : ${analytics.totalIncidents || 0}
 
-Incident Response : Automated
+    Total Detections : ${analytics.totalDetections || 0}
 
-Machine Learning Model : Random Forest`
+    Most Common Attack : ${analytics.mostCommonAttack || "None"}`
 
     );
 
@@ -113,21 +137,7 @@ Machine Learning Model : Random Forest`
 
         "Recommended Actions",
 
-`• Continue real-time traffic monitoring.
-
-• Update firewall rules regularly.
-
-• Retrain the ML model periodically with new traffic datasets.
-
-• Enable email alerts for critical incidents.
-
-• Investigate repeated malicious source IP addresses.
-
-• Perform weekly security audits.
-
-• Maintain backup and disaster recovery plans.
-
-• Review mitigation effectiveness after every attack.`
+    recommendations
 
     );
 
@@ -135,7 +145,17 @@ Machine Learning Model : Random Forest`
     // Final Status Banner
     //-------------------------------------------------------
 
-    doc.setFillColor(16,185,129);
+    doc.setFillColor(
+        unresolved > 0
+            ? 217
+            : 16,
+        unresolved > 0
+            ? 119
+            : 185,
+        unresolved > 0
+            ? 6
+            : 129
+    );
 
     doc.roundedRect(
 
@@ -169,7 +189,7 @@ Machine Learning Model : Random Forest`
 
     doc.text(
 
-        "Overall Assessment : SYSTEM SECURE & ML ENGINE OPERATIONAL",
+        `Overall Assessment : ${unresolved > 0 ? "ACTION REQUIRED" : "NO UNRESOLVED INCIDENTS"}`,
 
         105,
 

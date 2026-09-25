@@ -24,7 +24,7 @@ export default function TopAttackers() {
 
             const res = await fetch(
 
-                `${API}/incidents`,
+                `${API}/analytics`,
 
                 {
 
@@ -43,32 +43,11 @@ export default function TopAttackers() {
 
             const data = await res.json();
 
-            const map = {};
-
-            (data.incidents || []).forEach(item => {
-
-                const ip = item.sourceIP || item.source_ip;
-
-                if (!ip)
-                    return;
-
-                map[ip] = (map[ip] || 0) + 1;
-
-            });
-
-            const sorted = Object.entries(map)
-
-                .map(([ip, count]) => ({
-
-                    ip,
-
-                    count
-
-                }))
-
-                .sort((a, b) => b.count - a.count)
-
-                .slice(0, 5);
+            const sorted = (data.topAttackers || [])
+                .map(item => ({
+                    ip: item.ip,
+                    count: item.attacks
+                }));
 
             setIps(sorted);
 
