@@ -1,3 +1,4 @@
+
 const express = require("express");
 
 const router = express.Router();
@@ -31,27 +32,9 @@ router.get(
                 username
             } = req.user;
 
-            const filter =
-
-                role === "admin"
-
-                    ? {}
-
-                    : {
-
-                        $or: [
-
-                            {
-                                username
-                            },
-
-                            {
-                                username: "simulator"
-                            }
-
-                        ]
-
-                    };
+            // All authenticated users can view
+            // system-wide detection history.
+            const filter = {};
 
             const history =
                 await DetectionHistory.getAll(

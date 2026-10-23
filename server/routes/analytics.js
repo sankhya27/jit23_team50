@@ -1,3 +1,4 @@
+
 const express = require("express");
 const router = express.Router();
 
@@ -13,6 +14,16 @@ const metrics = require("../services/metrics");
 const logAudit = require("../utils/auditLogger");
 
 // ======================================================
+// CONSTANTS
+// ======================================================
+
+const REPORT_TIMEZONE = "Asia/Kolkata";
+
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// ======================================================
 // HELPERS
 // ======================================================
 
@@ -20,6 +31,69 @@ function isMongoConnected() {
 
     return (
         mongoose.connection.readyState === 1
+    );
+
+}
+
+// ======================================================
+// GET START OF TODAY IN IST
+// ======================================================
+
+function getStartOfTodayIST(date = new Date()) {
+
+    // Shift the timestamp to IST to determine
+    // the current calendar date in India.
+
+    const istDate = new Date(
+        date.getTime() + IST_OFFSET_MS
+    );
+
+    // Construct midnight in IST and convert
+    // it back to a UTC timestamp.
+
+    return new Date(
+
+        Date.UTC(
+
+            istDate.getUTCFullYear(),
+
+            istDate.getUTCMonth(),
+
+            istDate.getUTCDate()
+
+        ) - IST_OFFSET_MS
+
+    );
+
+}
+
+// ======================================================
+// GET START OF CURRENT WEEK IN IST
+// ======================================================
+
+function getStartOfWeekIST(date = new Date()) {
+
+    const startOfToday =
+        getStartOfTodayIST(date);
+
+    // getUTCDay() returns:
+    // Sunday = 0, Monday = 1, ... Saturday = 6.
+    //
+    // startOfToday represents midnight in IST
+    // stored as a UTC timestamp.
+
+    const istDate = new Date(
+        startOfToday.getTime() + IST_OFFSET_MS
+    );
+
+    const dayOfWeek =
+        istDate.getUTCDay();
+
+    return new Date(
+
+        startOfToday.getTime() -
+        dayOfWeek * DAY_MS
+
     );
 
 }
@@ -65,14 +139,14 @@ function getEmptyHistoricalAnalytics() {
             { day: "Thu", attacks: 0 },
             { day: "Fri", attacks: 0 },
             { day: "Sat", attacks: 0 }
-
         ],
 
         topAttackers: []
 
     };
 
-    };
+}
+
 // ======================================================
 // LIVE METRICS
 // ======================================================
@@ -113,29 +187,6 @@ function getLiveAnalytics() {
 
         uptime:
             liveMetrics.uptime_seconds || 0
-
-    };
-
-}
-
-// ======================================================
-// BUILD USER FILTER
-// ======================================================
-
-function getUserFilter(
-    role,
-    username
-) {
-
-    if (role === "admin") {
-
-        return {};
-
-    }
-
-    return {
-
-        username
 
     };
 
@@ -196,10 +247,34 @@ router.get(
 
             try {
 
-                const filter =
-                    getUserFilter(
-                        role,
-                        username
+                // ==================================================
+                // SYSTEM-WIDE ANALYTICS
+                // ==================================================
+                //
+                // Admins and Analysts can view analytics
+                // across all users.
+                //
+                // This endpoint is read-only. Permissions
+                // for simulation and incident modifications
+                // remain enforced by their own routes.
+                // ==================================================
+
+                const filter = {};
+
+                // ==================================================
+                // IST REPORTING WINDOWS
+                // ==================================================
+
+                const startOfToday =
+                    getStartOfTodayIST();
+
+                const startOfWeek =
+                    getStartOfWeekIST();
+
+                const endOfWeek =
+                    new Date(
+                        startOfWeek.getTime() +
+                        7 * DAY_MS
                     );
 
                 // ==================================================
@@ -383,7 +458,10 @@ router.get(
                     // ==================================================
                     // HOURLY ATTACKS
                     //
-                    // Today's incidents only.
+                    // Today's incidents in IST.
+                    //
+                    // Hour buckets and date boundaries both
+                    // use Asia/Kolkata reporting time.
                     // ==================================================
 
                     Incident.aggregate([
@@ -396,15 +474,7 @@ router.get(
                                 createdAt: {
 
                                     $gte:
-                                        new Date(
-                                            new Date()
-                                                .setHours(
-                                                    0,
-                                                    0,
-                                                    0,
-                                                    0
-                                                )
-                                        )
+                                        startOfToday
 
                                 }
 
@@ -418,8 +488,15 @@ router.get(
 
                                 _id: {
 
-                                    $hour:
-                                        "$createdAt"
+                                    $hour: {
+
+                                        date:
+                                            "$createdAt",
+
+                                        timezone:
+                                            REPORT_TIMEZONE
+
+                                    }
 
                                 },
 
@@ -448,7 +525,10 @@ router.get(
                     // ==================================================
                     // WEEKLY ATTACKS
                     //
-                    // Current week only.
+                    // Current Sunday-to-Saturday week in IST.
+                    //
+                    // MongoDB $dayOfWeek:
+                    // Sunday = 1, Monday = 2, ... Saturday = 7.
                     // ==================================================
 
                     Incident.aggregate([
@@ -462,72 +542,10 @@ router.get(
                                 createdAt: {
 
                                     $gte:
-                                        (() => {
-
-                                            const now =
-                                                new Date();
-
-                                            const start =
-                                                new Date(
-                                                    now
-                                                );
-
-                                            start.setHours(
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            );
-
-                                            start.setDate(
-
-                                                now.getDate() -
-                                                now.getDay()
-
-                                            );
-
-                                            return start;
-
-                                        })(),
+                                        startOfWeek,
 
                                     $lt:
-                                        (() => {
-
-                                            const now =
-                                                new Date();
-
-                                            const start =
-                                                new Date(
-                                                    now
-                                                );
-
-                                            start.setHours(
-                                                0,
-                                                0,
-                                                0,
-                                                0
-                                            );
-
-                                            start.setDate(
-
-                                                now.getDate() -
-                                                now.getDay()
-
-                                            );
-
-                                            const end =
-                                                new Date(
-                                                    start
-                                                );
-
-                                            end.setDate(
-                                                start.getDate() +
-                                                7
-                                            );
-
-                                            return end;
-
-                                        })()
+                                        endOfWeek
 
                                 }
 
@@ -541,8 +559,15 @@ router.get(
 
                                 _id: {
 
-                                    $dayOfWeek:
-                                        "$createdAt"
+                                    $dayOfWeek: {
+
+                                        date:
+                                            "$createdAt",
+
+                                        timezone:
+                                            REPORT_TIMEZONE
+
+                                    }
 
                                 },
 
@@ -812,13 +837,6 @@ router.get(
 
                 // ==================================================
                 // WEEKLY
-                //
-                // MongoDB $dayOfWeek:
-                //
-                // Sunday = 1
-                // Monday = 2
-                // ...
-                // Saturday = 7
                 // ==================================================
 
                 const weeklyCounts =
@@ -918,7 +936,7 @@ router.get(
                 }
 
                 // ==================================================
-                // EFFECTIVENESS
+                // MITIGATION EFFECTIVENESS
                 // ==================================================
 
                 const totalDetections =
@@ -1113,7 +1131,7 @@ router.get(
          * Audit logging is deliberately isolated.
          *
          * Even if the audit collection/database operation
-         * is slow, analytics data has already been prepared.
+         * fails, analytics data has already been prepared.
          */
 
         logAudit({

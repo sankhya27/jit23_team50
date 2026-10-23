@@ -1,3 +1,4 @@
+
 const express = require("express");
 
 const router = express.Router();
@@ -27,12 +28,9 @@ router.get(
                 username
             } = req.user;
 
-            const filter =
-                role === "admin"
-                    ? {}
-                    : {
-                        username
-                    };
+            // All authenticated users can view
+            // system-wide incidents.
+            const filter = {};
 
             const requestedLimit =
                 Number.parseInt(
